@@ -1,0 +1,30 @@
+variables:
+  IMAGE_NAME: $REPO/redis-operator
+  GOLANG_VERSION: 1.11.2
+  E2EIMAGE_NAME: $E2E_REPO/redis-operator-e2e
+
+stages:
+- BuildImage
+
+docker-image:
+  stage: BuildImage
+  tags:
+  - kun
+  image: $BUILD_IMAGE
+  script:
+  - IMAGE_TAG=$CI_COMMIT_SHA && if [[ -n "$CI_COMMIT_TAG" ]]; then IMAGE_TAG=$CI_COMMIT_TAG ; fi
+  - /kaniko/executor -c $CI_PROJECT_DIR -f Dockerfile -d $IMAGE_NAME:$IMAGE_TAG
+  only:
+  - tags
+  - dev
+
+e2e-image:
+  stage: BuildImage
+  tags:
+  - kune2e-a2
+  image: $BUILD_IMAGE
+  script:
+  - IMAGE_TAG=$CI_COMMIT_SHA && if [[ -n "$CI_COMMIT_TAG" ]]; then IMAGE_TAG=$CI_COMMIT_TAG ; fi
+  - /kaniko/executor -c $CI_PROJECT_DIR -f test/e2e/Dockerfile -d $E2EIMAGE_NAME:$IMAGE_TAG --build-arg GOLANG_VERSION=$GOLANG_VERSION
+  when: manual
+  allow_failure: false

@@ -1,0 +1,7 @@
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  name: test
+spec:
+  # Add fields here
+  size: 3

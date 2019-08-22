@@ -1,0 +1,347 @@
+# redis-operator
+
+## Overview
+
+Redis operator build a **Highly Available Redis cluster with Sentinel** atop Kubernetes.
+Using this operator you can create a Redis deployment that resists without human intervention to certain kind of failures.
+
+The operator itself is built with the [Operator framework](https://github.com/operator-framework/operator-sdk).
+
+It inspired by [spotahome/redis-operator](https://github.com/spotahome/redis-operator).
+
+## Prerequisites
+
+* go version v1.12+.
+* Access to a Kubernetes v1.11.3+ cluster.
+
+## Capabilities
+In addition to the sentinel's own capabilities, redis-operator can:
+
+* Push events and update status to the Kubernetes when resources have state changes
+* Deploy redis operator  watches and manages resources in a single namespace or cluster-wide
+* Create redis cluster with password
+* Dynamically changing redis config
+* False delete automatic recovery
+* Persistence
+* Custom SecurityContext
+
+## Quick Start
+
+### Deploy redis operator
+Build and push the redis-operator and e2e test image
+```
+$ make REGISTRY=you_public_registry build-image
+$ make REGISTRY=you_public_registry push
+```
+
+Register the RedisCluster custom resource definition (CRD).
+```
+$ kubectl create -f deploy/crds/redis_v1beta1_rediscluster_crd.yaml
+```
+
+A namespace-scoped operator watches and manages resources in a single namespace, whereas a cluster-scoped operator watches and manages resources cluster-wide.
+You can chose run your operator as namespace-scoped or cluster-scoped.
+```
+// Update the operator manifest to use the built image name
+$ sed -i 's|REPLACE_IMAGE|your_build_image_name/redis-operator|g' deploy/cluster/operator.yaml
+$ sed -i 's|REPLACE_IMAGE|your_build_image_name/redis-operator|g' deploy/namespace/operator.yaml
+# On OSX use:
+$ sed -i "" 's|REPLACE_IMAGE|your_build_image_name|g' deploy/cluster/operator.yaml
+$ sed -i "" 's|REPLACE_IMAGE|your_build_image_name|g' deploy/namespace/operator.yaml
+
+// cluster-scoped
+$ kubectl create -f deploy/service_account.yaml
+$ kubectl create -f deploy/cluster/cluster_role.yaml
+$ kubectl create -f deploy/cluster/cluster_role_binding.yaml
+$ kubectl create -f deploy/cluster/operator.yaml
+
+// namespace-scoped
+$ kubectl create -f deploy/service_account.yaml
+$ kubectl create -f deploy/namespace/role.yaml
+$ kubectl create -f deploy/namespace/role_binding.yaml
+$ kubectl create -f deploy/namespace/operator.yaml
+```
+
+Verify that the redis-operator is up and running:
+```
+$ kubectl get deployment
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+redis-operator   1/1     1            1           65d
+```
+
+### Deploy a sample redis cluster
+```
+$ cat deploy/cluster/redis_v1beta1_rediscluster_cr.yaml
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+spec:
+  # Add fields here
+  size: 3
+
+kubectl apply -f deploy/cluster/redis_v1beta1_rediscluster_cr.yaml
+if you run operator as namespace-scoped, do:
+kubectl apply -f deploy/namespace/redis_v1beta1_rediscluster_cr.yaml
+```
+
+Verify that the cluster instances and its components are running.
+```
+$ kubectl get rediscluster
+NAME   SIZE   STATUS    AGE
+test   3      Healthy   22h
+
+$ kubectl get all -l app.kubernetes.io/managed-by=redis-operator
+NAME                                       READY   STATUS    RESTARTS   AGE
+pod/redis-cluster-test-0                   1/1     Running   0          22h
+pod/redis-cluster-test-1                   1/1     Running   0          22h
+pod/redis-cluster-test-2                   1/1     Running   0          22h
+pod/redis-sentinel-test-7cbd85785b-6llfp   1/1     Running   0          22h
+pod/redis-sentinel-test-7cbd85785b-ggqw4   1/1     Running   0          22h
+pod/redis-sentinel-test-7cbd85785b-nxxfc   1/1     Running   0          22h
+
+NAME                          TYPE        CLUSTER-IP               EXTERNAL-IP   PORT(S)     AGE
+service/redis-sentinel-test   ClusterIP   xxxxxxxxxx               <none>        26379/TCP   22h
+
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/redis-sentinel-test   3/3     3            3           22h
+
+NAME                                             DESIRED   CURRENT   READY   AGE
+replicaset.apps/redis-sentinel-test-7cbd85785b   3         3         3       22h
+
+NAME                                  READY   AGE
+statefulset.apps/redis-cluster-test   3/3     22h
+```
+
+* redis-cluster-<NAME>: Redis statefulset
+* redis-sentinel-<NAME>: Sentinel deployment
+* redis-sentinel-<NAME>: Sentinel service
+
+Describe the Redis Cluster, Viewing Events and Status
+```
+$ kubectl describe redisclusters test
+
+Name:         test
+Namespace:    default
+Labels:       <none>
+Annotations:  redis.kun/scope: cluster-scoped
+API Version:  redis.kun/v1beta1
+Kind:         RedisCluster
+Metadata:
+  Generation:          1
+  UID:                 ec0c3be4-b9c5-11e9-8191-6c92bfb35d2e
+Spec:
+  Image:              redis:5.0.4-alpine
+  Resources:
+    Limits:
+      Cpu:     400m
+      Memory:  300Mi
+    Requests:
+      Cpu:     100m
+      Memory:  50Mi
+  Size:        3
+Status:
+  Conditions:
+    Last Transition Time:  2019-08-08T10:21:14Z
+    Last Update Time:      2019-08-08T10:22:14Z
+    Message:               Cluster ok
+    Reason:                Cluster available
+    Status:                True
+    Type:                  Healthy
+    Last Transition Time:  2019-08-08T10:18:53Z
+    Last Update Time:      2019-08-08T10:18:53Z
+    Message:               Bootstrap redis cluster
+    Reason:                Creating
+    Status:                True
+    Type:                  Creating
+Events:
+  Type    Reason        Age                    From            Message
+  ----    ------        ----                   ----            -------
+  Normal  Creating      3m22s                  redis-operator  Bootstrap redis cluster
+  Normal  Ensure        2m12s (x8 over 3m22s)  redis-operator  Makes sure of redis cluster ready
+  Normal  CheckAndHeal  2m12s (x8 over 3m22s)  redis-operator  Check and heal the redis cluster problems
+  Normal  Updating      2m12s (x8 over 3m22s)  redis-operator  wait for all redis server start
+```
+
+#### Resize an Redis Cluster
+The initial cluster size is 3. Modify the file and change size from 3 to 5.
+```
+$ cat deploy/crds/redis_v1beta1_rediscluster_cr.yaml
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+spec:
+  # Add fields here
+  size: 5
+
+kubectl apply -f deploy/crds/redis_v1beta1_rediscluster_cr.yaml
+```
+
+The Redis Cluster will scale to 5 members(1 Master with 4 Slaves).
+
+#### Create redis cluster with password
+
+You can setup redis with auth by set `spec.password`.
+
+```
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+  namespace: default
+spec:
+  # custom password (null to disable)
+  password: asdfsdf
+  # custom configurations
+  config:
+    hz: "10"
+    loglevel: verbose
+    maxclients: "10000"
+  image: redis:5.0.4-alpine
+  resources:
+    limits:
+      cpu: 400m
+      memory: 300Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  size: 3
+```
+
+#### Dynamically changing redis config
+
+If the custom configurations is changed, the operator will use `config set` cmd apply the changes to the redis node without the need of reload the redis node.
+
+```
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+  namespace: default
+spec:
+  # custom password (null to disable)
+  password: asdfsdf
+  # change the configurations
+  config:
+    hz: "12"
+    loglevel: debug
+    maxclients: "10000"
+  image: redis:5.0.4-alpine
+  resources:
+    limits:
+      cpu: 400m
+      memory: 300Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  size: 3
+```
+
+#### Persistence
+
+The operator has the ability of add persistence to Redis data. By default an emptyDir will be used, so the data is not saved.
+
+In order to have persistence, a PersistentVolumeClaim usage is allowed.
+
+The `spec.disablePersistence:false` flag can automatically configures the persistence parameters.
+
+```
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  name: test
+  # if your operator run as cluster-scoped, add this annotations
+  annotations:
+    redis.kun/scope: "cluster-scoped"
+  namespace: default
+spec:
+  image: redis:5.0.4-alpine
+  resources:
+    limits:
+      cpu: 400m
+      memory: 300Mi
+    requests:
+      cpu: 50m
+      memory: 30Mi
+  size: 3
+  # when the disablePersistence set to false, the following configurations will be set automatically:
+  # config["appendonly"] = "yes"
+  # config["auto-aof-rewrite-min-size"] = "1gb"
+  # config["repl-diskless-sync"] = "yes"
+  # config["repl-backlog-size"] = "60mb"
+  # config["repl-diskless-sync-delay"] = "5"
+  # config["aof-load-truncated"] = "yes"
+  # config["stop-writes-on-bgsave-error"] = "no"
+  # when the disablePersistence set to true, the following configurations will be set automatically:
+  # config["save"] = ""
+  # config["appendonly"] = "no"
+  disablePersistence: false
+  storage:
+    # By default, the persistent volume claims will be deleted when the Redis Cluster be delete.
+    # If this is not the expected usage, a keepAfterDeletion flag can be added under the storage section
+    keepAfterDeletion: true
+    persistentVolumeClaim:
+      metadata:
+        name: test
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        storageClassName: sc-rbd-x5
+        volumeMode: Filesystem
+```
+
+#### Custom SecurityContext
+
+You can change `net.core.somaxconn`(default is 128) by uses the pod securityContext to set unsafe sysctls net.core.somaxconn.
+
+```
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+spec:
+  # Add fields here
+  size: 3
+  securityContext:
+      sysctls:
+      - name: net.core.somaxconn
+        value: "1024"
+```
+
+### Cleanup
+
+```
+$ kubectl delete -f deploy/cluster/redis_v1beta1_rediscluster_cr.yaml
+$ kubectl delete -f deploy/cluster/operator.yaml
+$ kubectl delete -f deploy/cluster/cluster_role.yaml
+$ kubectl delete -f deploy/cluster/cluster_role_binding.yaml
+$ kubectl delete -f deploy/service_account.yaml
+$ kubectl delete -f deploy/crds/redis_v1beta1_rediscluster_crd.yaml
+
+or:
+$ kubectl delete -f deploy/namespace/redis_v1beta1_rediscluster_cr.yaml
+$ kubectl delete -f deploy/namespace/operator.yaml
+$ kubectl delete -f deploy/namespace/role.yaml
+$ kubectl delete -f deploy/namespace/role_binding.yaml
+$ kubectl delete -f deploy/service_account.yaml
+$ kubectl delete -f deploy/crds/redis_v1beta1_rediscluster_crd.yaml
+```

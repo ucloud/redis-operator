@@ -23,6 +23,9 @@ func (r *RedisClusterHandler) Ensure(rc *redisv1beta1.RedisCluster, labels map[s
 	if err := r.rcService.EnsureSentinelConfigMap(rc, labels, or); err != nil {
 		return err
 	}
+	if err := r.rcService.EnsureSentinelProbeConfigMap(rc, labels, or); err != nil {
+		return err
+	}
 	if err := r.rcService.EnsureRedisShutdownConfigMap(rc, labels, or); err != nil {
 		return err
 	}

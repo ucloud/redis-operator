@@ -45,3 +45,7 @@ func GetSentinelName(rc *redisv1beta1.RedisCluster) string {
 func GenerateName(typeName, metaName string) string {
 	return fmt.Sprintf("%s%s-%s", BaseName, typeName, metaName)
 }
+
+func GetSentinelReadinessCm(rc *redisv1beta1.RedisCluster) string {
+	return GenerateName("-sentinel-readiness", rc.Name)
+}

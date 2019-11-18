@@ -94,9 +94,9 @@ func (r *RedisClusterChecker) CheckSentinelNumber(rc *redisv1beta1.RedisCluster)
 	if rc.Spec.Sentinel.Replicas != *d.Spec.Replicas {
 		return errors.New("number of sentinel pods differ from specification")
 	}
-	if rc.Spec.Sentinel.Replicas != d.Status.ReadyReplicas {
-		return errors.New("waiting all of sentinel pods become ready")
-	}
+	//if rc.Spec.Sentinel.Replicas != d.Status.ReadyReplicas {
+	//	return errors.New("waiting all of sentinel pods become ready")
+	//}
 	return nil
 }
 

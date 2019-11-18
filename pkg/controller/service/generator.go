@@ -140,7 +140,9 @@ func generateRedisShutdownConfigMap(rc *redisv1beta1.RedisCluster, labels map[st
 	namespace := rc.Namespace
 
 	labels = util.MergeLabels(labels, generateSelectorLabels(util.RedisRoleName, rc.Name))
-	shutdownContent := `master=$(redis-cli -h ${rcS_REDIS_SERVICE_HOST} -p ${rcS_REDIS_SERVICE_PORT_SENTINEL} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
+	shutdownContent := `#!/usr/bin/env sh
+set -eou pipefail
+master=$(redis-cli -h ${rcS_REDIS_SERVICE_HOST} -p ${rcS_REDIS_SERVICE_PORT_SENTINEL} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
 redis-cli SAVE
 if [[ $master ==  $(hostname -i) ]]; then
   redis-cli -h ${rcS_REDIS_SERVICE_HOST} -p ${rcS_REDIS_SERVICE_PORT_SENTINEL} SENTINEL failover mymaster
@@ -155,6 +157,37 @@ fi`
 		},
 		Data: map[string]string{
 			"shutdown.sh": shutdownContent,
+		},
+	}
+}
+
+func generateSentinelReadinessProbeConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) *corev1.ConfigMap {
+	name := util.GetSentinelReadinessCm(rc)
+	namespace := rc.Namespace
+
+	labels = util.MergeLabels(labels, generateSelectorLabels(util.RedisRoleName, rc.Name))
+	checkContent := `#!/usr/bin/env sh
+set -eou pipefail
+redis-cli -h $(hostname) -p 26379 ping
+slaves=$(redis-cli -h $(hostname) -p 26379 info sentinel|grep master0| grep -Eo 'slaves=[0-9]+' | awk -F= '{print $2}')
+status=$(redis-cli -h $(hostname) -p 26379 info sentinel|grep master0| grep -Eo 'status=\w+' | awk -F= '{print $2}')
+if [ "$status" != "ok" ]; then 
+    exit 1
+fi
+if [ $slaves -le 1 ]; then
+	exit 1
+fi
+`
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       namespace,
+			Labels:          labels,
+			OwnerReferences: ownerRefs,
+		},
+		Data: map[string]string{
+			"readiness.sh": checkContent,
 		},
 	}
 }
@@ -246,7 +279,7 @@ func generateRedisStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]s
 							Lifecycle: &corev1.Lifecycle{
 								PreStop: &corev1.Handler{
 									Exec: &corev1.ExecAction{
-										Command: []string{"/bin/sh", "-c", "/redis-shutdown/shutdown.sh"},
+										Command: []string{"/bin/sh", "/redis-shutdown/shutdown.sh"},
 									},
 								},
 							},
@@ -358,6 +391,10 @@ func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
+									Name:      "readiness-probe",
+									MountPath: "/redis-probe",
+								},
+								{
 									Name:      "sentinel-config-writable",
 									MountPath: "/redis",
 								},
@@ -370,8 +407,7 @@ func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string
 									Exec: &corev1.ExecAction{
 										Command: []string{
 											"sh",
-											"-c",
-											"redis-cli -h $(hostname) -p 26379 ping",
+											"/redis-probe/readiness.sh",
 										},
 									},
 								},
@@ -399,6 +435,16 @@ func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string
 								ConfigMap: &corev1.ConfigMapVolumeSource{
 									LocalObjectReference: corev1.LocalObjectReference{
 										Name: configMapName,
+									},
+								},
+							},
+						},
+						{
+							Name: "readiness-probe",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: util.GetSentinelReadinessCm(rc),
 									},
 								},
 							},

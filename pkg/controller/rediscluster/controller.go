@@ -86,7 +86,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			if !shoudManage(e.MetaNew) {
 				return false
 			}
-			log.WithValues("namespace", e.MetaNew.GetNamespace(), "name", e.MetaNew.GetName()).Info("Call UpdateFunc")
+			log.WithValues("namespace", e.MetaNew.GetNamespace(), "name", e.MetaNew.GetName()).V(5).Info("Call UpdateFunc")
 			// Ignore updates to CR status in which case metadata.Generation does not change
 			if e.MetaOld.GetGeneration() != e.MetaNew.GetGeneration() {
 				log.WithValues("namespace", e.MetaNew.GetNamespace(), "name", e.MetaNew.GetName()).Info("Generation change return true")
@@ -195,7 +195,7 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	reqLogger.V(3).Info(fmt.Sprintf("RedisCluster Spec:\n %+v", instance))
+	reqLogger.V(4).Info(fmt.Sprintf("RedisCluster Spec:\n %+v", instance))
 
 	if err = r.handler.Do(instance); err != nil {
 		if err.Error() == needRequeueMsg {

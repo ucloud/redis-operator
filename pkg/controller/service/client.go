@@ -15,6 +15,7 @@ import (
 type RedisClusterClient interface {
 	EnsureSentinelService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
+	EnsureSentinelProbeConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelDeployment(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureRedisStatefulset(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureRedisService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
@@ -54,6 +55,12 @@ func (r *RedisClusterKubeClient) EnsureSentinelService(rc *redisv1beta1.RedisClu
 // EnsureSentinelConfigMap makes sure the sentinel configmap exists
 func (r *RedisClusterKubeClient) EnsureSentinelConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	cm := generateSentinelConfigMap(rc, labels, ownerRefs)
+	return r.K8SService.CreateOrUpdateConfigMap(rc.Namespace, cm)
+}
+
+// EnsureSentinelConfigMap makes sure the sentinel configmap exists
+func (r *RedisClusterKubeClient) EnsureSentinelProbeConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+	cm := generateSentinelReadinessProbeConfigMap(rc, labels, ownerRefs)
 	return r.K8SService.CreateOrUpdateConfigMap(rc.Namespace, cm)
 }
 

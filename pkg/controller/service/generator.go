@@ -701,3 +701,24 @@ func getAffinity(affinity *corev1.Affinity, labels map[string]string) *corev1.Af
 		},
 	}
 }
+
+// newHeadLessSvcForCR creates a new headless service for the given Cluster.
+func newHeadLessSvcForCR(cluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) *corev1.Service {
+	sentinelPort := corev1.ServicePort{Name: "sentinel", Port: 26379}
+	labels = util.MergeLabels(labels, generateSelectorLabels(util.SentinelRoleName, cluster.Name))
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:          labels,
+			Name:            util.GetSentinelHeadlessSvc(cluster),
+			Namespace:       cluster.Namespace,
+			OwnerReferences: ownerRefs,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports:     []corev1.ServicePort{sentinelPort},
+			Selector:  labels,
+			ClusterIP: corev1.ClusterIPNone,
+		},
+	}
+
+	return svc
+}

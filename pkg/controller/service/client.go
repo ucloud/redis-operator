@@ -14,6 +14,7 @@ import (
 // in order to talk with K8s
 type RedisClusterClient interface {
 	EnsureSentinelService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
+	EnsureSentinelHeadlessService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelProbeConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelDeployment(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
@@ -49,6 +50,12 @@ func generateSelectorLabels(component, name string) map[string]string {
 // EnsureSentinelService makes sure the sentinel service exists
 func (r *RedisClusterKubeClient) EnsureSentinelService(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	svc := generateSentinelService(rc, labels, ownerRefs)
+	return r.K8SService.CreateIfNotExistsService(rc.Namespace, svc)
+}
+
+// EnsureSentinelHeadlessService makes sure the sentinel headless service exists
+func (r *RedisClusterKubeClient) EnsureSentinelHeadlessService(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+	svc := newHeadLessSvcForCR(rc, labels, ownerRefs)
 	return r.K8SService.CreateIfNotExistsService(rc.Namespace, svc)
 }
 

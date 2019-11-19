@@ -33,9 +33,8 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 		return needRequeueErr
 	}
 	if err := r.rcChecker.CheckSentinelNumber(meta.Obj); err != nil {
-		r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).V(2).Info("number of sentinel mismatch, this could be for a change on the deployment")
-		r.eventsCli.UpdateCluster(meta.Obj, "wait for all redis sentinel start")
-		return needRequeueErr
+		r.eventsCli.FailedCluster(meta.Obj, err.Error())
+		return nil
 	}
 
 	nMasters, err := r.rcChecker.GetNumberMasters(meta.Obj, meta.Auth)

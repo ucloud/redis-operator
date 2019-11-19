@@ -195,7 +195,7 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	reqLogger.V(4).Info(fmt.Sprintf("RedisCluster Spec:\n %+v", instance))
+	reqLogger.V(5).Info(fmt.Sprintf("RedisCluster Spec:\n %+v", instance))
 
 	if err = r.handler.Do(instance); err != nil {
 		if err.Error() == needRequeueMsg {
@@ -205,8 +205,12 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	// Recreate any missing resources every 'ReconcileTime'
-	return reconcile.Result{RequeueAfter: ReconcileTime}, nil
+	if err = r.handler.rcChecker.CheckSentinelReadyReplicas(instance); err != nil {
+		reqLogger.Info(err.Error())
+		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func shoudManage(meta v1.Object) bool {

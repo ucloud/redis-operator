@@ -20,6 +20,7 @@ import (
 type RedisClusterCheck interface {
 	CheckRedisNumber(redisCluster *redisv1beta1.RedisCluster) error
 	CheckSentinelNumber(redisCluster *redisv1beta1.RedisCluster) error
+	CheckSentinelReadyReplicas(redisCluster *redisv1beta1.RedisCluster) error
 	CheckAllSlavesFromMaster(master string, redisCluster *redisv1beta1.RedisCluster, auth *util.AuthConfig) error
 	CheckSentinelNumberInMemory(sentinel string, redisCluster *redisv1beta1.RedisCluster, auth *util.AuthConfig) error
 	CheckSentinelSlavesNumberInMemory(sentinel string, redisCluster *redisv1beta1.RedisCluster, auth *util.AuthConfig) error
@@ -94,9 +95,18 @@ func (r *RedisClusterChecker) CheckSentinelNumber(rc *redisv1beta1.RedisCluster)
 	if rc.Spec.Sentinel.Replicas != *d.Spec.Replicas {
 		return errors.New("number of sentinel pods differ from specification")
 	}
-	//if rc.Spec.Sentinel.Replicas != d.Status.ReadyReplicas {
-	//	return errors.New("waiting all of sentinel pods become ready")
-	//}
+	return nil
+}
+
+// CheckSentinelReadyReplicas controls that the number of deployed sentinel ready pod is the same than the requested on the spec
+func (r *RedisClusterChecker) CheckSentinelReadyReplicas(rc *redisv1beta1.RedisCluster) error {
+	d, err := r.k8sService.GetDeployment(rc.Namespace, util.GetSentinelName(rc))
+	if err != nil {
+		return err
+	}
+	if rc.Spec.Sentinel.Replicas != d.Status.ReadyReplicas {
+		return errors.New("waiting all of sentinel pods become ready")
+	}
 	return nil
 }
 

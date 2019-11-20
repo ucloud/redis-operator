@@ -96,14 +96,14 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 			}
 		}
 	}
-	for _, sip := range sentinels {
-		if err := r.rcChecker.CheckSentinelNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
-			r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
-			if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
-				return err
-			}
-		}
-	}
+	//for _, sip := range sentinels {
+	//	if err := r.rcChecker.CheckSentinelNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
+	//		r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
+	//		if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
+	//			return err
+	//		}
+	//	}
+	//}
 	for _, sip := range sentinels {
 		if err := r.rcChecker.CheckSentinelSlavesNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
 			r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())

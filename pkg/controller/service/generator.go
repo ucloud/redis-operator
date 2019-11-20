@@ -316,7 +316,7 @@ func podAnnotations(annotationIstioInject bool) map[string]string {
 	return nil
 }
 
-func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) *appsv1.Deployment {
+func generateSentinelStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) *appsv1.StatefulSet {
 	name := util.GetSentinelName(rc)
 	configMapName := util.GetSentinelName(rc)
 	namespace := rc.Namespace
@@ -325,15 +325,16 @@ func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string
 	sentinelCommand := getSentinelCommand(rc)
 	labels = util.MergeLabels(labels, generateSelectorLabels(util.SentinelRoleName, rc.Name))
 
-	return &appsv1.Deployment{
+	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       namespace,
 			Labels:          labels,
 			OwnerReferences: ownerRefs,
 		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &spec.Sentinel.Replicas,
+		Spec: appsv1.StatefulSetSpec{
+			ServiceName: util.GetSentinelHeadlessSvc(rc),
+			Replicas:    &spec.Sentinel.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -368,11 +369,11 @@ func generateSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("10m"),
-									corev1.ResourceMemory: resource.MustParse("16Mi"),
+									corev1.ResourceMemory: resource.MustParse("32Mi"),
 								},
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("10m"),
-									corev1.ResourceMemory: resource.MustParse("16Mi"),
+									corev1.ResourceMemory: resource.MustParse("32Mi"),
 								},
 							},
 						},

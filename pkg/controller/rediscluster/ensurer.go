@@ -20,6 +20,9 @@ func (r *RedisClusterHandler) Ensure(rc *redisv1beta1.RedisCluster, labels map[s
 	if err := r.rcService.EnsureSentinelService(rc, labels, or); err != nil {
 		return err
 	}
+	if err := r.rcService.EnsureSentinelHeadlessService(rc, labels, or); err != nil {
+		return err
+	}
 	if err := r.rcService.EnsureSentinelConfigMap(rc, labels, or); err != nil {
 		return err
 	}
@@ -32,7 +35,7 @@ func (r *RedisClusterHandler) Ensure(rc *redisv1beta1.RedisCluster, labels map[s
 	if err := r.rcService.EnsureRedisStatefulset(rc, labels, or); err != nil {
 		return err
 	}
-	if err := r.rcService.EnsureSentinelDeployment(rc, labels, or); err != nil {
+	if err := r.rcService.EnsureSentinelStatefulset(rc, labels, or); err != nil {
 		return err
 	}
 

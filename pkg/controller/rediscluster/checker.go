@@ -102,6 +102,7 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 	//		if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
 	//			return err
 	//		}
+	//		return needRequeueErr
 	//	}
 	//}
 	for _, sip := range sentinels {
@@ -110,6 +111,7 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 			if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
 				return err
 			}
+			return needRequeueErr
 		}
 	}
 

@@ -3,12 +3,16 @@ package rediscluster
 import (
 	"errors"
 	"fmt"
-	"github.com/ucloud/redis-operator/pkg/controller/clustercache"
 	"time"
+
+	redisv1beta1 "github.com/ucloud/redis-operator/pkg/apis/redis/v1beta1"
+	"github.com/ucloud/redis-operator/pkg/controller/clustercache"
+	"github.com/ucloud/redis-operator/pkg/util"
 )
 
 const (
-	timeToPrepare  = 2 * time.Minute
+	checkInterval  = 5 * time.Second
+	timeOut        = 30 * time.Second
 	needRequeueMsg = "need requeue"
 )
 
@@ -96,6 +100,7 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 			}
 		}
 	}
+	// TODO: check sentinel's number
 	//for _, sip := range sentinels {
 	//	if err := r.rcChecker.CheckSentinelNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
 	//		r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
@@ -111,7 +116,10 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 			if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
 				return err
 			}
-			return needRequeueErr
+			if err := r.waitRestoreSentinelOK(sip, meta.Obj, meta.Auth); err != nil {
+				r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
+				return err
+			}
 		}
 	}
 
@@ -151,4 +159,22 @@ func (r *RedisClusterHandler) setSentinelConfig(meta *clustercache.Meta, sentine
 		}
 	}
 	return nil
+}
+
+func (r *RedisClusterHandler) waitRestoreSentinelOK(sentinel string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
+	timer := time.NewTimer(timeOut)
+	defer timer.Stop()
+	for {
+		select {
+		case <-timer.C:
+			return fmt.Errorf("wait for resetore sentinel timeout")
+		default:
+			if err := r.rcChecker.CheckSentinelSlavesNumberInMemory(sentinel, rc, auth); err != nil {
+				r.logger.WithValues("namespace", rc.Namespace, "name", rc.Name).Info(err.Error())
+				time.Sleep(checkInterval)
+			} else {
+				return nil
+			}
+		}
+	}
 }

@@ -3,10 +3,8 @@ package rediscluster
 import (
 	"context"
 	"fmt"
-	"github.com/ucloud/redis-operator/pkg/metrics"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,11 +23,12 @@ import (
 	"github.com/ucloud/redis-operator/pkg/client/redis"
 	"github.com/ucloud/redis-operator/pkg/controller/clustercache"
 	"github.com/ucloud/redis-operator/pkg/controller/service"
+	"github.com/ucloud/redis-operator/pkg/metrics"
 	"github.com/ucloud/redis-operator/pkg/util"
 )
 
 // ReconcileTime is the delay between reconciliations
-const ReconcileTime = 40 * time.Second
+const ReconcileTime = 60 * time.Second
 const MaxConcurrentReconciles = 2
 
 var log = logf.Log.WithName("controller_rediscluster")
@@ -120,38 +119,38 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	ownerPred := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return false
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			log.WithValues("namespace", e.Meta.GetNamespace(), "kind", e.Object.GetObjectKind().GroupVersionKind().Kind, "name", e.Meta.GetName()).
-				V(3).Info("dependent resource delete")
-			// Evaluates to false if the object has been confirmed deleted.
-			return !e.DeleteStateUnknown
-		},
-		CreateFunc: func(e event.CreateEvent) bool {
-			return false
-		},
-	}
-
-	// Watch for changes to redisCluster StatefulSet secondary resources
-	err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &redisv1beta1.RedisCluster{},
-	}, ownerPred)
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to redisCluster Deployment secondary resources
-	err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &redisv1beta1.RedisCluster{},
-	}, ownerPred)
-	if err != nil {
-		return err
-	}
+	//ownerPred := predicate.Funcs{
+	//	UpdateFunc: func(e event.UpdateEvent) bool {
+	//		return false
+	//	},
+	//	DeleteFunc: func(e event.DeleteEvent) bool {
+	//		log.WithValues("namespace", e.Meta.GetNamespace(), "kind", e.Object.GetObjectKind().GroupVersionKind().Kind, "name", e.Meta.GetName()).
+	//			V(3).Info("dependent resource delete")
+	//		// Evaluates to false if the object has been confirmed deleted.
+	//		return !e.DeleteStateUnknown
+	//	},
+	//	CreateFunc: func(e event.CreateEvent) bool {
+	//		return false
+	//	},
+	//}
+	//
+	//// Watch for changes to redisCluster StatefulSet secondary resources
+	//err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}}, &handler.EnqueueRequestForOwner{
+	//	IsController: true,
+	//	OwnerType:    &redisv1beta1.RedisCluster{},
+	//}, ownerPred)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// Watch for changes to redisCluster Deployment secondary resources
+	//err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
+	//	IsController: true,
+	//	OwnerType:    &redisv1beta1.RedisCluster{},
+	//}, ownerPred)
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -199,7 +198,7 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 
 	if err = r.handler.Do(instance); err != nil {
 		if err.Error() == needRequeueMsg {
-			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+			return reconcile.Result{RequeueAfter: 20 * time.Second}, nil
 		}
 		reqLogger.Error(err, "Reconcile handler")
 		return reconcile.Result{}, err
@@ -207,10 +206,10 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 
 	if err = r.handler.rcChecker.CheckSentinelReadyReplicas(instance); err != nil {
 		reqLogger.Info(err.Error())
-		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+		return reconcile.Result{RequeueAfter: 20 * time.Second}, nil
 	}
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: ReconcileTime}, nil
 }
 
 func shoudManage(meta v1.Object) bool {

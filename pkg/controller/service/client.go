@@ -89,7 +89,7 @@ func (r *RedisClusterKubeClient) EnsureSentinelStatefulset(rc *redisv1beta1.Redi
 		return err
 	}
 
-	if shouldUpdateRedis(rc, oldSs.Spec.Template.Spec.Containers[0], *oldSs.Spec.Replicas) {
+	if shouldUpdateRedis(rc.Spec.Sentinel.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources, rc.Spec.Sentinel.Replicas, *oldSs.Spec.Replicas) {
 		ss := generateSentinelStatefulSet(rc, labels, ownerRefs)
 		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
 	}
@@ -122,27 +122,28 @@ func (r *RedisClusterKubeClient) EnsureRedisStatefulset(rc *redisv1beta1.RedisCl
 		return err
 	}
 
-	if shouldUpdateRedis(rc, oldSs.Spec.Template.Spec.Containers[0], *oldSs.Spec.Replicas) {
+	if shouldUpdateRedis(rc.Spec.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources,
+		rc.Spec.Size, *oldSs.Spec.Replicas) {
 		ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
 		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
 	}
 	return nil
 }
 
-func shouldUpdateRedis(rc *redisv1beta1.RedisCluster, containter corev1.Container, replicas int32) bool {
-	if replicas != rc.Spec.Size {
+func shouldUpdateRedis(expectResource, containterResource corev1.ResourceRequirements, expectSize, replicas int32) bool {
+	if expectSize != replicas {
 		return true
 	}
-	if result := containter.Resources.Requests.Cpu().Cmp(*rc.Spec.Resources.Requests.Cpu()); result != 0 {
+	if result := containterResource.Requests.Cpu().Cmp(*expectResource.Requests.Cpu()); result != 0 {
 		return true
 	}
-	if result := containter.Resources.Requests.Memory().Cmp(*rc.Spec.Resources.Requests.Memory()); result != 0 {
+	if result := containterResource.Requests.Memory().Cmp(*expectResource.Requests.Memory()); result != 0 {
 		return true
 	}
-	if result := containter.Resources.Limits.Cpu().Cmp(*rc.Spec.Resources.Limits.Cpu()); result != 0 {
+	if result := containterResource.Limits.Cpu().Cmp(*expectResource.Limits.Cpu()); result != 0 {
 		return true
 	}
-	if result := containter.Resources.Limits.Memory().Cmp(*rc.Spec.Resources.Limits.Memory()); result != 0 {
+	if result := containterResource.Limits.Memory().Cmp(*expectResource.Limits.Memory()); result != 0 {
 		return true
 	}
 	return false

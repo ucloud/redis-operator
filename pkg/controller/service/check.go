@@ -130,34 +130,22 @@ func (r *RedisClusterChecker) CheckAllSlavesFromMaster(master string, rc *redisv
 
 // CheckSentinelNumberInMemory controls that sentinels have only the living sentinels on its memory.
 func (r *RedisClusterChecker) CheckSentinelNumberInMemory(sentinel string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
-	sips, err := r.GetSentinelsIPs(rc)
+	nSentinels, err := r.redisClient.GetNumberSentinelsInMemory(sentinel, auth)
 	if err != nil {
 		return err
-	}
-	for _, sip := range sips {
-		nSentinels, err := r.redisClient.GetNumberSentinelsInMemory(sip, auth)
-		if err != nil {
-			return err
-		} else if nSentinels != rc.Spec.Sentinel.Replicas {
-			return errors.New("sentinels in memory mismatch")
-		}
+	} else if nSentinels != rc.Spec.Sentinel.Replicas {
+		return errors.New("sentinels in memory mismatch")
 	}
 	return nil
 }
 
 // CheckSentinelSlavesNumberInMemory controls that sentinels have only the spected slaves number.
 func (r *RedisClusterChecker) CheckSentinelSlavesNumberInMemory(sentinel string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
-	sips, err := r.GetSentinelsIPs(rc)
+	nSlaves, err := r.redisClient.GetNumberSentinelSlavesInMemory(sentinel, auth)
 	if err != nil {
 		return err
-	}
-	for _, sip := range sips {
-		nSlaves, err := r.redisClient.GetNumberSentinelSlavesInMemory(sip, auth)
-		if err != nil {
-			return err
-		} else if nSlaves != rc.Spec.Size-1 {
-			return errors.New("sentinel's slaves in memory mismatch")
-		}
+	} else if nSlaves != rc.Spec.Size-1 {
+		return errors.New("sentinel's slaves in memory mismatch")
 	}
 	return nil
 }

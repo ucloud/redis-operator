@@ -29,7 +29,7 @@ import (
 
 // ReconcileTime is the delay between reconciliations
 const ReconcileTime = 60 * time.Second
-const MaxConcurrentReconciles = 2
+const MaxConcurrentReconciles = 4
 
 var log = logf.Log.WithName("controller_rediscluster")
 

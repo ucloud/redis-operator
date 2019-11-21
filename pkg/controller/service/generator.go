@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -140,13 +141,15 @@ func generateRedisShutdownConfigMap(rc *redisv1beta1.RedisCluster, labels map[st
 	namespace := rc.Namespace
 
 	labels = util.MergeLabels(labels, generateSelectorLabels(util.RedisRoleName, rc.Name))
-	shutdownContent := `#!/usr/bin/env sh
+	envSentinelHost := fmt.Sprintf("REDIS_SENTINEL_%s_SERVICE_HOST", strings.ToUpper(rc.Name))
+	envSentinelPort := fmt.Sprintf("REDIS_SENTINEL_%s_SERVICE_PORT_SENTINEL", strings.ToUpper(rc.Name))
+	shutdownContent := fmt.Sprintf(`#!/usr/bin/env sh
 set -eou pipefail
-master=$(redis-cli -h ${rcS_REDIS_SERVICE_HOST} -p ${rcS_REDIS_SERVICE_PORT_SENTINEL} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
+master=$(redis-cli -h ${%s} -p ${%s} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
 redis-cli SAVE
 if [[ $master ==  $(hostname -i) ]]; then
-  redis-cli -h ${rcS_REDIS_SERVICE_HOST} -p ${rcS_REDIS_SERVICE_PORT_SENTINEL} SENTINEL failover mymaster
-fi`
+  redis-cli -h ${%s} -p ${%s} SENTINEL failover mymaster
+fi`, envSentinelHost, envSentinelPort, envSentinelHost, envSentinelPort)
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

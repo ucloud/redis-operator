@@ -22,7 +22,7 @@ import (
 
 var (
 	defaultTimeout = 10 * time.Minute
-	wailTime       = 35 * time.Second
+	wailTime       = 70 * time.Second
 )
 
 const (
@@ -198,7 +198,7 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 		})
 	})
 
-	ginkgo.Describe("[RedisCluster] create a basic redis cluster, then delete pod,statefuleset,depolyment", func() {
+	ginkgo.Describe("[RedisCluster] create a basic redis cluster, then delete pod,statefulSet", func() {
 		name := e2e.RandString(8)
 		rc := &redisv1beta1.RedisCluster{}
 		auth := &util.AuthConfig{}
@@ -225,9 +225,9 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 			})
 		})
 
-		ginkgo.Context("when delete statefulset of the redis cluster", func() {
+		ginkgo.Context("when delete statefulSet of the redis cluster", func() {
 			ginkgo.BeforeEach(func() {
-				f.Logf("delete statefulset %s %s", rc.Namespace, util.GetRedisName(rc))
+				f.Logf("delete statefulSet %s %s", rc.Namespace, util.GetRedisName(rc))
 				err := f.K8sService.DeleteStatefulSet(rc.Namespace, util.GetRedisName(rc))
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				f.WaitRedisclusterHealthy(rc.Name, wailTime, defaultTimeout)
@@ -247,9 +247,9 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 			})
 		})
 
-		ginkgo.Context("when delete sentinel deployment of the redis cluster", func() {
+		ginkgo.Context("when delete sentinel statefulSet of the redis cluster", func() {
 			ginkgo.BeforeEach(func() {
-				err := f.K8sService.DeleteDeployment(rc.Namespace, util.GetSentinelName(rc))
+				err := f.K8sService.DeleteStatefulSet(rc.Namespace, util.GetSentinelName(rc))
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				f.WaitRedisclusterHealthy(rc.Name, wailTime, defaultTimeout)
 			})
@@ -262,7 +262,7 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 		})
 	})
 
-	ginkgo.Describe("[RedisCluster] create a redis cluster with pvc, then delete pod,statefuleset,depolyment", func() {
+	ginkgo.Describe("[RedisCluster] create a redis cluster with pvc, then delete pod,statefulSet", func() {
 		name := e2e.RandString(8)
 		rc := &redisv1beta1.RedisCluster{}
 		auth := &util.AuthConfig{}
@@ -289,9 +289,9 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 			})
 		})
 
-		ginkgo.Context("when delete statefulset of the redis cluster", func() {
+		ginkgo.Context("when delete statefulSet of the redis cluster", func() {
 			ginkgo.BeforeEach(func() {
-				f.Logf("delete statefulset %s %s", rc.Namespace, util.GetRedisName(rc))
+				f.Logf("delete statefulSet %s %s", rc.Namespace, util.GetRedisName(rc))
 				err := f.K8sService.DeleteStatefulSet(rc.Namespace, util.GetRedisName(rc))
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				f.WaitRedisclusterHealthy(rc.Name, wailTime, defaultTimeout)
@@ -301,9 +301,9 @@ var _ = ginkgo.Describe("RedisCluster", func() {
 			})
 		})
 
-		ginkgo.Context("when delete sentinel deployment of the redis cluster", func() {
+		ginkgo.Context("when delete sentinel statefulSet of the redis cluster", func() {
 			ginkgo.BeforeEach(func() {
-				err := f.K8sService.DeleteDeployment(rc.Namespace, util.GetSentinelName(rc))
+				err := f.K8sService.DeleteStatefulSet(rc.Namespace, util.GetSentinelName(rc))
 				gomega.Expect(err).NotTo(gomega.HaveOccurred())
 				f.WaitRedisclusterHealthy(rc.Name, wailTime, defaultTimeout)
 			})
@@ -544,9 +544,9 @@ func getRedisClusterNodeIPs(statefulSetName string) []string {
 	return podIPs
 }
 
-func getRedisClusterSentinelIPs(deploymentName string) []string {
+func getRedisClusterSentinelIPs(name string) []string {
 	podIPs := []string{}
-	podList, err := f.K8sService.GetDeploymentPods(f.Namespace(), deploymentName)
+	podList, err := f.K8sService.GetStatefulSetPods(f.Namespace(), name)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	for _, pod := range podList.Items {
 		if pod.Status.Phase == corev1.PodRunning {

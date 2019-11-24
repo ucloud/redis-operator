@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,11 +28,27 @@ import (
 	"github.com/ucloud/redis-operator/pkg/util"
 )
 
-// ReconcileTime is the delay between reconciliations
 const ReconcileTime = 60 * time.Second
-const MaxConcurrentReconciles = 4
 
-var log = logf.Log.WithName("controller_rediscluster")
+var (
+	controllerFlagSet *pflag.FlagSet
+	// maxConcurrentReconciles is the maximum number of concurrent Reconciles which can be run. Defaults to 4.
+	maxConcurrentReconciles int
+	// reconcileTime is the delay between reconciliations. Defaults to 60s.
+	reconcileTime int
+
+	log = logf.Log.WithName("controller_rediscluster")
+)
+
+func init() {
+	controllerFlagSet = pflag.NewFlagSet("controller", pflag.ExitOnError)
+	controllerFlagSet.IntVar(&maxConcurrentReconciles, "ctr-maxconcurrent", 4, "the maximum number of concurrent Reconciles which can be run. Defaults to 4.")
+	controllerFlagSet.IntVar(&reconcileTime, "ctr-reconciletime", 60, "")
+}
+
+func FlagSet() *pflag.FlagSet {
+	return controllerFlagSet
+}
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -74,7 +91,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New("rediscluster-controller", mgr, controller.Options{Reconciler: r,
-		MaxConcurrentReconciles: MaxConcurrentReconciles})
+		MaxConcurrentReconciles: maxConcurrentReconciles})
 	if err != nil {
 		return err
 	}
@@ -209,7 +226,7 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{RequeueAfter: 20 * time.Second}, nil
 	}
 
-	return reconcile.Result{RequeueAfter: ReconcileTime}, nil
+	return reconcile.Result{RequeueAfter: time.Duration(reconcileTime) * time.Second}, nil
 }
 
 func shoudManage(meta v1.Object) bool {

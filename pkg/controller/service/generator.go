@@ -406,6 +406,8 @@ func generateSentinelStatefulSet(rc *redisv1beta1.RedisCluster, labels map[strin
 							Command: sentinelCommand,
 							ReadinessProbe: &corev1.Probe{
 								InitialDelaySeconds: graceTime,
+								PeriodSeconds:       15,
+								FailureThreshold:    5,
 								TimeoutSeconds:      5,
 								Handler: corev1.Handler{
 									Exec: &corev1.ExecAction{

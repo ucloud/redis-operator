@@ -1,7 +1,6 @@
 module github.com/ucloud/redis-operator
 
 require (
-	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/onsi/ginkgo v1.7.0
@@ -32,3 +31,5 @@ replace (
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.1.12
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.1.11-0.20190411181648-9d55346c2bde
 )
+
+go 1.13

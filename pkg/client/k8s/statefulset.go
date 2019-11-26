@@ -3,15 +3,14 @@ package k8s
 import (
 	"context"
 	"fmt"
+
+	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/go-logr/logr"
 )
 
 // StatefulSet the StatefulSet client that knows how to interact with kubernetes to manage them
@@ -30,6 +29,7 @@ type StatefulSet interface {
 	DeleteStatefulSet(namespace string, name string) error
 	// ListStatefulSets get set of StatefulSet on a given namespace
 	ListStatefulSets(namespace string) (*appsv1.StatefulSetList, error)
+	CreateIfNotExistsStatefulSet(namespace string, statefulSet *appsv1.StatefulSet) error
 }
 
 // StatefulSetOption is the StatefulSet client implementation using API calls to kubernetes.
@@ -112,12 +112,26 @@ func (s *StatefulSetOption) CreateOrUpdateStatefulSet(namespace string, stateful
 	// Set the correct resource version to ensure we are on the latest version. This way the only valid
 	// namespace is our spec(https://github.com/kubernetes/community/blob/master/contributors/devel/api-conventions.md#concurrency-control-and-consistency),
 	// we will replace the current namespace state.
-	s.logger.WithValues("namespace", namespace, "storedStatefulSet", statefulSet.ObjectMeta.Name).V(3).Info(fmt.Sprintf("storedStatefulSet Spec:\n %+v", storedStatefulSet))
+	s.logger.WithValues("namespace", namespace, "storedStatefulSet", statefulSet.ObjectMeta.Name).V(5).Info(fmt.Sprintf("storedStatefulSet Spec:\n %+v", storedStatefulSet))
 
 	statefulSet.ResourceVersion = storedStatefulSet.ResourceVersion
-	s.logger.WithValues("namespace", namespace, "statefulSet", statefulSet.ObjectMeta.Name).V(3).Info(fmt.Sprintf("Stateful Spec:\n %+v", statefulSet))
+	s.logger.WithValues("namespace", namespace, "statefulSet", statefulSet.ObjectMeta.Name).V(5).Info(fmt.Sprintf("Stateful Spec:\n %+v", statefulSet))
 
 	return s.UpdateStatefulSet(namespace, statefulSet)
+}
+
+// CreateIfNotExistsStatefulSet implement the StatefulSet.Interface
+func (s *StatefulSetOption) CreateIfNotExistsStatefulSet(namespace string, statefulSet *appsv1.StatefulSet) error {
+	_, err := s.GetStatefulSet(namespace, statefulSet.Name)
+	if err != nil {
+		// If no resource we need to create.
+		if errors.IsNotFound(err) {
+			return s.CreateStatefulSet(namespace, statefulSet)
+		}
+		return err
+	}
+
+	return nil
 }
 
 // DeleteStatefulSet implement the StatefulSet.Interface

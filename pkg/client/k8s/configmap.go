@@ -24,6 +24,7 @@ type ConfigMap interface {
 	DeleteConfigMap(namespace string, name string) error
 	// ListConfigMaps get set of ConfigMaps on a given namespace
 	ListConfigMaps(namespace string) (*corev1.ConfigMapList, error)
+	CreateIfNotExistsConfigMap(namespace string, configMap *corev1.ConfigMap) error
 }
 
 // ConfigMapOption is the configMap client interface implementation that using API calls to kubernetes.
@@ -72,6 +73,18 @@ func (p *ConfigMapOption) UpdateConfigMap(namespace string, configMap *corev1.Co
 		return err
 	}
 	p.logger.WithValues("namespace", namespace, "configMap", configMap.Name).Info("configMap updated")
+	return nil
+}
+
+// CreateIfNotExistsConfigMap implement the ConfigMap.Interface
+func (p *ConfigMapOption) CreateIfNotExistsConfigMap(namespace string, configMap *corev1.ConfigMap) error {
+	if _, err := p.GetConfigMap(namespace, configMap.Name); err != nil {
+		// If no resource we need to create.
+		if errors.IsNotFound(err) {
+			return p.CreateConfigMap(namespace, configMap)
+		}
+		return err
+	}
 	return nil
 }
 

@@ -34,6 +34,7 @@ type RedisClusterHandler struct {
 
 // Do will ensure the RedisCluster is in the expected state and update the RedisCluster status.
 func (r *RedisClusterHandler) Do(rc *redisv1beta1.RedisCluster) error {
+	r.logger.WithValues("namespace", rc.Namespace, "name", rc.Name).Info("handler doing")
 	if err := rc.Validate(); err != nil {
 		metrics.ClusterMetrics.SetClusterError(rc.Namespace, rc.Name)
 		return err

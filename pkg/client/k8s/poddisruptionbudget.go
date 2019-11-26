@@ -23,6 +23,7 @@ type PodDisruptionBudget interface {
 	CreateOrUpdatePodDisruptionBudget(namespace string, podDisruptionBudget *policyv1beta1.PodDisruptionBudget) error
 	// DeletePodDisruptionBudget will delete the given podDisruptionBudget
 	DeletePodDisruptionBudget(namespace string, name string) error
+	CreateIfNotExistsPodDisruptionBudget(namespace string, podDisruptionBudget *policyv1beta1.PodDisruptionBudget) error
 }
 
 // PodDisruptionBudgetOption is the podDisruptionBudget client implementation using API calls to kubernetes.
@@ -90,6 +91,20 @@ func (p *PodDisruptionBudgetOption) CreateOrUpdatePodDisruptionBudget(namespace 
 	// we will replace the current namespace state.
 	podDisruptionBudget.ResourceVersion = storedPodDisruptionBudget.ResourceVersion
 	return p.UpdatePodDisruptionBudget(namespace, podDisruptionBudget)
+}
+
+// CreateIfNotExistsPodDisruptionBudget implement the PodDisruptionBudget.Interface
+func (p *PodDisruptionBudgetOption) CreateIfNotExistsPodDisruptionBudget(namespace string, podDisruptionBudget *policyv1beta1.PodDisruptionBudget) error {
+	_, err := p.GetPodDisruptionBudget(namespace, podDisruptionBudget.Name)
+	if err != nil {
+		// If no resource we need to create.
+		if errors.IsNotFound(err) {
+			return p.CreatePodDisruptionBudget(namespace, podDisruptionBudget)
+		}
+		return err
+	}
+
+	return nil
 }
 
 // DeletePodDisruptionBudget implement the PodDisruptionBudget.Interface

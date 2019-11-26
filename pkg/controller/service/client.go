@@ -2,6 +2,8 @@ package service
 
 import (
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -14,8 +16,10 @@ import (
 // in order to talk with K8s
 type RedisClusterClient interface {
 	EnsureSentinelService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
+	EnsureSentinelHeadlessService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureSentinelConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
-	EnsureSentinelDeployment(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
+	EnsureSentinelProbeConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
+	EnsureSentinelStatefulset(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureRedisStatefulset(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureRedisService(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
 	EnsureRedisShutdownConfigMap(redisCluster *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error
@@ -51,19 +55,45 @@ func (r *RedisClusterKubeClient) EnsureSentinelService(rc *redisv1beta1.RedisClu
 	return r.K8SService.CreateIfNotExistsService(rc.Namespace, svc)
 }
 
+// EnsureSentinelHeadlessService makes sure the sentinel headless service exists
+func (r *RedisClusterKubeClient) EnsureSentinelHeadlessService(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+	svc := newHeadLessSvcForCR(rc, labels, ownerRefs)
+	return r.K8SService.CreateIfNotExistsService(rc.Namespace, svc)
+}
+
 // EnsureSentinelConfigMap makes sure the sentinel configmap exists
 func (r *RedisClusterKubeClient) EnsureSentinelConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	cm := generateSentinelConfigMap(rc, labels, ownerRefs)
-	return r.K8SService.CreateOrUpdateConfigMap(rc.Namespace, cm)
+	return r.K8SService.CreateIfNotExistsConfigMap(rc.Namespace, cm)
 }
 
-// EnsureSentinelDeployment makes sure the sentinel deployment exists in the desired state
-func (r *RedisClusterKubeClient) EnsureSentinelDeployment(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+// EnsureSentinelConfigMap makes sure the sentinel configmap exists
+func (r *RedisClusterKubeClient) EnsureSentinelProbeConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+	cm := generateSentinelReadinessProbeConfigMap(rc, labels, ownerRefs)
+	return r.K8SService.CreateIfNotExistsConfigMap(rc.Namespace, cm)
+}
+
+// EnsureSentinelStatefulset makes sure the sentinel deployment exists in the desired state
+func (r *RedisClusterKubeClient) EnsureSentinelStatefulset(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	if err := r.ensurePodDisruptionBudget(rc, util.SentinelName, util.SentinelRoleName, labels, ownerRefs); err != nil {
 		return err
 	}
-	d := generateSentinelDeployment(rc, labels, ownerRefs)
-	return r.K8SService.CreateOrUpdateDeployment(rc.Namespace, d)
+
+	oldSs, err := r.K8SService.GetStatefulSet(rc.Namespace, util.GetSentinelName(rc))
+	if err != nil {
+		// If no resource we need to create.
+		if errors.IsNotFound(err) {
+			ss := generateSentinelStatefulSet(rc, labels, ownerRefs)
+			return r.K8SService.CreateStatefulSet(rc.Namespace, ss)
+		}
+		return err
+	}
+
+	if shouldUpdateRedis(rc.Spec.Sentinel.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources, rc.Spec.Sentinel.Replicas, *oldSs.Spec.Replicas) {
+		ss := generateSentinelStatefulSet(rc, labels, ownerRefs)
+		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
+	}
+	return nil
 }
 
 // EnsureRedisStatefulset makes sure the redis statefulset exists in the desired state
@@ -82,15 +112,47 @@ func (r *RedisClusterKubeClient) EnsureRedisStatefulset(rc *redisv1beta1.RedisCl
 		annotationIstioInject = true
 	}
 
-	ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
+	oldSs, err := r.K8SService.GetStatefulSet(rc.Namespace, util.GetRedisName(rc))
+	if err != nil {
+		// If no resource we need to create.
+		if errors.IsNotFound(err) {
+			ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
+			return r.K8SService.CreateStatefulSet(rc.Namespace, ss)
+		}
+		return err
+	}
 
-	return r.K8SService.CreateOrUpdateStatefulSet(rc.Namespace, ss)
+	if shouldUpdateRedis(rc.Spec.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources,
+		rc.Spec.Size, *oldSs.Spec.Replicas) {
+		ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
+		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
+	}
+	return nil
+}
+
+func shouldUpdateRedis(expectResource, containterResource corev1.ResourceRequirements, expectSize, replicas int32) bool {
+	if expectSize != replicas {
+		return true
+	}
+	if result := containterResource.Requests.Cpu().Cmp(*expectResource.Requests.Cpu()); result != 0 {
+		return true
+	}
+	if result := containterResource.Requests.Memory().Cmp(*expectResource.Requests.Memory()); result != 0 {
+		return true
+	}
+	if result := containterResource.Limits.Cpu().Cmp(*expectResource.Limits.Cpu()); result != 0 {
+		return true
+	}
+	if result := containterResource.Limits.Memory().Cmp(*expectResource.Limits.Memory()); result != 0 {
+		return true
+	}
+	return false
 }
 
 // EnsureRedisConfigMap makes sure the sentinel configmap exists
 func (r *RedisClusterKubeClient) EnsureRedisConfigMap(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	cm := generateRedisConfigMap(rc, labels, ownerRefs)
-	return r.K8SService.CreateOrUpdateConfigMap(rc.Namespace, cm)
+	return r.K8SService.CreateIfNotExistsConfigMap(rc.Namespace, cm)
 }
 
 // EnsureRedisShutdownConfigMap makes sure the redis configmap with shutdown script exists
@@ -101,7 +163,7 @@ func (r *RedisClusterKubeClient) EnsureRedisShutdownConfigMap(rc *redisv1beta1.R
 		}
 	} else {
 		cm := generateRedisShutdownConfigMap(rc, labels, ownerRefs)
-		return r.K8SService.CreateOrUpdateConfigMap(rc.Namespace, cm)
+		return r.K8SService.CreateIfNotExistsConfigMap(rc.Namespace, cm)
 	}
 	return nil
 }
@@ -133,5 +195,5 @@ func (r *RedisClusterKubeClient) ensurePodDisruptionBudget(rc *redisv1beta1.Redi
 
 	pdb := generatePodDisruptionBudget(name, namespace, labels, ownerRefs, minAvailable)
 
-	return r.K8SService.CreateOrUpdatePodDisruptionBudget(namespace, pdb)
+	return r.K8SService.CreateIfNotExistsPodDisruptionBudget(namespace, pdb)
 }

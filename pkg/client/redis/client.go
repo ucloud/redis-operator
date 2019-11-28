@@ -172,6 +172,22 @@ func (c *client) MonitorRedis(ip string, monitor string, quorum string, auth *ut
 		}
 	}
 
+	sCmd := rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "down-after-milliseconds", "1000")
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
+	}
+	sCmd = rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "failover-timeout", "3000")
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
+	}
+	sCmd = rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "parallel-syncs", "2")
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

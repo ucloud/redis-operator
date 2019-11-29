@@ -46,6 +46,10 @@ const (
 	redisPort               = "6379"
 	sentinelPort            = "26379"
 	masterName              = "mymaster"
+
+	defaultDownAfterMilliseconds = "5000"
+	defaultFailovertimeout       = "6000"
+	defaultParallelSyncs         = "2"
 )
 
 var (
@@ -170,6 +174,22 @@ func (c *client) MonitorRedis(ip string, monitor string, quorum string, auth *ut
 		if err = sCmd.Err(); err != nil {
 			return err
 		}
+	}
+
+	sCmd := rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "down-after-milliseconds", defaultDownAfterMilliseconds)
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
+	}
+	sCmd = rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "failover-timeout", defaultFailovertimeout)
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
+	}
+	sCmd = rediscli.NewStatusCmd("SENTINEL", "SET", masterName, "parallel-syncs", defaultParallelSyncs)
+	rClient.Process(sCmd)
+	if err = sCmd.Err(); err != nil {
+		return err
 	}
 
 	return nil

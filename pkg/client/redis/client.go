@@ -48,7 +48,7 @@ const (
 	masterName              = "mymaster"
 
 	defaultDownAfterMilliseconds = "5000"
-	defaultFailovertimeout       = "6000"
+	defaultFailovertimeout       = "3000"
 	defaultParallelSyncs         = "2"
 )
 

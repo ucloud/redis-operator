@@ -100,24 +100,24 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 			}
 		}
 	}
-	// TODO: check sentinel's number
-	//for _, sip := range sentinels {
-	//	if err := r.rcChecker.CheckSentinelNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
-	//		r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
-	//		if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
-	//			return err
-	//		}
-	//		return needRequeueErr
-	//	}
-	//}
 	for _, sip := range sentinels {
 		if err := r.rcChecker.CheckSentinelSlavesNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
-			r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
+			r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).
+				Info("restoring sentinel ...", "sentinel", sip, "reason", err.Error())
 			if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
 				return err
 			}
-			if err := r.waitRestoreSentinelOK(sip, meta.Obj, meta.Auth); err != nil {
+			if err := r.waitRestoreSentinelSlavesOK(sip, meta.Obj, meta.Auth); err != nil {
 				r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).Info(err.Error())
+				return err
+			}
+		}
+	}
+	for _, sip := range sentinels {
+		if err := r.rcChecker.CheckSentinelNumberInMemory(sip, meta.Obj, meta.Auth); err != nil {
+			r.logger.WithValues("namespace", meta.Obj.Namespace, "name", meta.Obj.Name).
+				Info("restoring sentinel ...", "sentinel", sip, "reason", err.Error())
+			if err := r.rcHealer.RestoreSentinel(sip, meta.Auth); err != nil {
 				return err
 			}
 		}
@@ -161,13 +161,13 @@ func (r *RedisClusterHandler) setSentinelConfig(meta *clustercache.Meta, sentine
 	return nil
 }
 
-func (r *RedisClusterHandler) waitRestoreSentinelOK(sentinel string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
+func (r *RedisClusterHandler) waitRestoreSentinelSlavesOK(sentinel string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
 	timer := time.NewTimer(timeOut)
 	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:
-			return fmt.Errorf("wait for resetore sentinel timeout")
+			return fmt.Errorf("wait for resetore sentinel slave timeout")
 		default:
 			if err := r.rcChecker.CheckSentinelSlavesNumberInMemory(sentinel, rc, auth); err != nil {
 				r.logger.WithValues("namespace", rc.Namespace, "name", rc.Name).Info(err.Error())

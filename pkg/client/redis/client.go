@@ -103,12 +103,12 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 	if err != nil {
 		return 0, err
 	}
-	nSlaves := len(slaveInfoBlobs)
+	nSlaves := 0
 	for _, slaveInfoBlob := range slaveInfoBlobs {
 		slaveInfo := reflect.ValueOf(slaveInfoBlob)
 		slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(37))
-		if slavePriority == "0" {
-			nSlaves -= 1
+		if slavePriority == "1" {
+			nSlaves += 1
 		}
 	}
 

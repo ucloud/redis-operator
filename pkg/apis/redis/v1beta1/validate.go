@@ -14,6 +14,8 @@ const (
 	defaultRedisNumber    = 3
 	defaultSentinelNumber = 3
 	defaultRedisImage     = "redis:5.0.4-alpine"
+
+	defaultSlavePriority = "1"
 )
 
 var (
@@ -29,7 +31,7 @@ func (r *RedisCluster) Validate() error {
 	if r.Spec.Size == 0 {
 		r.Spec.Size = defaultRedisNumber
 	} else if r.Spec.Size < defaultRedisNumber {
-		return errors.New("number of redises in spec is less than the minimum")
+		return errors.New("number of redis in spec is less than the minimum")
 	}
 
 	if r.Spec.Sentinel.Replicas == 0 {
@@ -53,6 +55,9 @@ func (r *RedisCluster) Validate() error {
 	if r.Spec.Config == nil {
 		r.Spec.Config = make(map[string]string)
 	}
+
+	// https://github.com/ucloud/redis-operator/issues/6
+	r.Spec.Config["slave-priority"] = defaultSlavePriority
 
 	if !r.Spec.DisablePersistence {
 		enablePersistence(r.Spec.Config)

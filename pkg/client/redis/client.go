@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -92,17 +93,25 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 		return 0, err
 	}
 
-	if err2 := isSentinelReady(info); err2 != nil {
-		return 0, err2
+	if err = isSentinelReady(info); err != nil {
+		return 0, err
 	}
-	match := slaveNumberRE.FindStringSubmatch(info)
-	if len(match) == 0 {
-		return 0, errors.New("slaves regex not found")
-	}
-	nSlaves, err := strconv.Atoi(match[1])
+
+	cmd := rediscli.NewSliceCmd("sentinel", "slaves", masterName)
+	rClient.Process(cmd)
+	slaveInfoBlobs, err := cmd.Result()
 	if err != nil {
 		return 0, err
 	}
+	nSlaves := len(slaveInfoBlobs)
+	for _, slaveInfoBlob := range slaveInfoBlobs {
+		slaveInfo := reflect.ValueOf(slaveInfoBlob)
+		slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(37))
+		if slavePriority == "0" {
+			nSlaves -= 1
+		}
+	}
+
 	return int32(nSlaves), nil
 }
 

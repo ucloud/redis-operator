@@ -104,11 +104,18 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 		return 0, err
 	}
 	nSlaves := 0
+OUTER:
 	for _, slaveInfoBlob := range slaveInfoBlobs {
 		slaveInfo := reflect.ValueOf(slaveInfoBlob)
-		slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(37))
-		if slavePriority == "1" {
-			nSlaves += 1
+		for key, value := range slaveInfoBlob.([]interface{}) {
+			stringValue := value.(string)
+			if stringValue == "slave-priority" {
+				slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
+				if slavePriority == "1" {
+					nSlaves += 1
+				}
+				continue OUTER
+			}
 		}
 	}
 

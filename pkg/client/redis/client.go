@@ -109,12 +109,20 @@ OUTER:
 		slaveInfo := reflect.ValueOf(slaveInfoBlob)
 		for key, value := range slaveInfoBlob.([]interface{}) {
 			stringValue := value.(string)
+			// When the master node becomes a slave node, runid will become empty
+			if stringValue == "runid" {
+				runID := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
+				if runID == "" {
+					nSlaves += 1
+					continue OUTER
+				}
+			}
 			if stringValue == "slave-priority" {
 				slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
 				if slavePriority == "1" {
 					nSlaves += 1
+					continue OUTER
 				}
-				continue OUTER
 			}
 		}
 	}

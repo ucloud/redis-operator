@@ -103,26 +103,18 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 	if err != nil {
 		return 0, err
 	}
-	nSlaves := 0
+	nSlaves := len(slaveInfoBlobs)
 OUTER:
 	for _, slaveInfoBlob := range slaveInfoBlobs {
 		slaveInfo := reflect.ValueOf(slaveInfoBlob)
 		for key, value := range slaveInfoBlob.([]interface{}) {
 			stringValue := value.(string)
-			// When the master node becomes a slave node, runid will become empty
-			if stringValue == "runid" {
-				runID := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
-				if runID == "" {
-					nSlaves += 1
-					continue OUTER
-				}
-			}
 			if stringValue == "slave-priority" {
 				slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
-				if slavePriority == "1" {
-					nSlaves += 1
-					continue OUTER
+				if slavePriority == "0" {
+					nSlaves -= 1
 				}
+				continue OUTER
 			}
 		}
 	}

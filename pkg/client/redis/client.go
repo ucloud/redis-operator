@@ -92,18 +92,39 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 		return 0, err
 	}
 
-	if err2 := isSentinelReady(info); err2 != nil {
-		return 0, err2
+	if err = isSentinelReady(info); err != nil {
+		return 0, err
 	}
-	match := slaveNumberRE.FindStringSubmatch(info)
-	if len(match) == 0 {
-		return 0, errors.New("slaves regex not found")
-	}
-	nSlaves, err := strconv.Atoi(match[1])
+
+	cmd := rediscli.NewSliceCmd("sentinel", "slaves", masterName)
+	rClient.Process(cmd)
+	slaveInfoBlobs, err := cmd.Result()
 	if err != nil {
 		return 0, err
 	}
+	nSlaves := len(slaveInfoBlobs)
+	for _, slaveInfoBlob := range slaveInfoBlobs {
+		slavePriority := slaveInfoFieldByName("slave-priority", slaveInfoBlob)
+		if slavePriority == "0" {
+			nSlaves -= 1
+		}
+	}
+
 	return int32(nSlaves), nil
+}
+
+func slaveInfoFieldByName(name string, slaveInfoBlob interface{}) string {
+	slaveInfo := slaveInfoBlob.([]interface{})
+	infoLens := len(slaveInfo)
+	i := 0
+	for i+1 < infoLens {
+		stringValue := slaveInfo[i].(string)
+		if stringValue == name {
+			return slaveInfo[i+1].(string)
+		}
+		i += 2
+	}
+	return ""
 }
 
 func isSentinelReady(info string) error {

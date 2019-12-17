@@ -117,7 +117,7 @@ func slaveInfoFieldByName(name string, slaveInfoBlob interface{}) string {
 	slaveInfo := slaveInfoBlob.([]interface{})
 	infoLens := len(slaveInfo)
 	i := 0
-	for i < infoLens {
+	for i+1 < infoLens {
 		stringValue := slaveInfo[i].(string)
 		if stringValue == name {
 			return slaveInfo[i+1].(string)

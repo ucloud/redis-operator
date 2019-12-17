@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -104,22 +103,25 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 		return 0, err
 	}
 	nSlaves := len(slaveInfoBlobs)
-OUTER:
 	for _, slaveInfoBlob := range slaveInfoBlobs {
-		slaveInfo := reflect.ValueOf(slaveInfoBlob)
-		for key, value := range slaveInfoBlob.([]interface{}) {
-			stringValue := value.(string)
-			if stringValue == "slave-priority" {
-				slavePriority := fmt.Sprintf("%+v", slaveInfo.Index(key+1))
-				if slavePriority == "0" {
-					nSlaves -= 1
-				}
-				continue OUTER
-			}
+		slavePriority := slaveInfoFieldByName("slave-priority", slaveInfoBlob)
+		if slavePriority == "0" {
+			nSlaves -= 1
 		}
 	}
 
 	return int32(nSlaves), nil
+}
+
+func slaveInfoFieldByName(name string, slaveInfoBlob interface{}) string {
+	slaveInfo := slaveInfoBlob.([]interface{})
+	for key, value := range slaveInfo {
+		stringValue := value.(string)
+		if stringValue == name {
+			return slaveInfo[key+1].(string)
+		}
+	}
+	return ""
 }
 
 func isSentinelReady(info string) error {

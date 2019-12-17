@@ -115,11 +115,14 @@ func (c *client) GetNumberSentinelSlavesInMemory(ip string, auth *util.AuthConfi
 
 func slaveInfoFieldByName(name string, slaveInfoBlob interface{}) string {
 	slaveInfo := slaveInfoBlob.([]interface{})
-	for key, value := range slaveInfo {
-		stringValue := value.(string)
+	infoLens := len(slaveInfo)
+	i := 0
+	for i < infoLens {
+		stringValue := slaveInfo[i].(string)
 		if stringValue == name {
-			return slaveInfo[key+1].(string)
+			return slaveInfo[i+1].(string)
 		}
+		i += 2
 	}
 	return ""
 }

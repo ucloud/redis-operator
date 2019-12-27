@@ -55,27 +55,23 @@ func generateRedisService(rc *redisv1beta1.RedisCluster, labels map[string]strin
 	namespace := rc.Namespace
 
 	labels = util.MergeLabels(labels, generateSelectorLabels(util.RedisRoleName, rc.Name))
-
+	redisTargetPort := intstr.FromInt(6379)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       namespace,
 			Labels:          labels,
 			OwnerReferences: ownerRefs,
-			Annotations: map[string]string{
-				"prometheus.io/scrape": "true",
-				"prometheus.io/port":   "http",
-				"prometheus.io/path":   "/metrics",
-			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
 			ClusterIP: corev1.ClusterIPNone,
 			Ports: []corev1.ServicePort{
 				{
-					Port:     exporterPort,
-					Protocol: corev1.ProtocolTCP,
-					Name:     exporterPortName,
+					Port:       6379,
+					Protocol:   corev1.ProtocolTCP,
+					Name:       "redis",
+					TargetPort: redisTargetPort,
 				},
 			},
 			Selector: labels,
@@ -196,7 +192,7 @@ fi
 }
 
 func generateRedisStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]string,
-	ownerRefs []metav1.OwnerReference, annotationIstioInject bool) *appsv1.StatefulSet {
+	ownerRefs []metav1.OwnerReference) *appsv1.StatefulSet {
 	name := util.GetRedisName(rc)
 	namespace := rc.Namespace
 
@@ -232,7 +228,7 @@ func generateRedisStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]s
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      labels,
-					Annotations: podAnnotations(annotationIstioInject),
+					Annotations: rc.Spec.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Affinity:        getAffinity(rc.Spec.Affinity, labels),
@@ -310,13 +306,6 @@ func generateRedisStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]s
 	}
 
 	return ss
-}
-
-func podAnnotations(annotationIstioInject bool) map[string]string {
-	if annotationIstioInject {
-		return map[string]string{"sidecar.istio.io/inject": "false"}
-	}
-	return nil
 }
 
 func generateSentinelStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]string, ownerRefs []metav1.OwnerReference) *appsv1.StatefulSet {
@@ -497,7 +486,7 @@ func generateResourceList(cpu string, memory string) corev1.ResourceList {
 }
 
 func createRedisExporterContainer(rc *redisv1beta1.RedisCluster) corev1.Container {
-	return corev1.Container{
+	container := corev1.Container{
 		Name:            exporterContainerName,
 		Image:           rc.Spec.Exporter.Image,
 		ImagePullPolicy: "Always",
@@ -529,6 +518,13 @@ func createRedisExporterContainer(rc *redisv1beta1.RedisCluster) corev1.Containe
 			},
 		},
 	}
+	if rc.Spec.Password != "" {
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  redisPasswordEnv,
+			Value: rc.Spec.Password,
+		})
+	}
+	return container
 }
 
 func createPodAntiAffinity(hard bool, labels map[string]string) *corev1.PodAntiAffinity {

@@ -502,7 +502,7 @@ func createRedisExporterContainer(rc *redisv1beta1.RedisCluster) corev1.Containe
 		},
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "metrics",
+				Name:          exporterPortName,
 				ContainerPort: exporterPort,
 				Protocol:      corev1.ProtocolTCP,
 			},

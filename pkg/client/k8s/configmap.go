@@ -125,6 +125,6 @@ func (p *ConfigMapOption) ListConfigMaps(namespace string) (*corev1.ConfigMapLis
 	listOps := &client.ListOptions{
 		Namespace: namespace,
 	}
-	err := p.client.List(context.TODO(), listOps, cms)
+	err := p.client.List(context.TODO(), cms, listOps)
 	return cms, err
 }

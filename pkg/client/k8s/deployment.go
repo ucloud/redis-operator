@@ -72,7 +72,7 @@ func (d *DeploymentOption) GetDeploymentPods(namespace, name string) (*corev1.Po
 	}
 	labelSelector := labels.SelectorFromSet(labelSet)
 	foundPods := &corev1.PodList{}
-	err = d.client.List(context.TODO(), &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}, foundPods)
+	err = d.client.List(context.TODO(), foundPods, &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector})
 	return foundPods, err
 }
 
@@ -133,6 +133,6 @@ func (d *DeploymentOption) ListDeployments(namespace string) (*appsv1.Deployment
 	listOps := &client.ListOptions{
 		Namespace: namespace,
 	}
-	err := d.client.List(context.TODO(), listOps, ds)
+	err := d.client.List(context.TODO(), ds, listOps)
 	return ds, err
 }

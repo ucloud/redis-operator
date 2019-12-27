@@ -10,7 +10,7 @@ E2EALTREPO=$(REGISTRY)/$(PROJECT_NAME)-e2e
 VERSION=$(shell git describe --always --tags --dirty | sed "s/\(.*\)-g`git rev-parse --short HEAD`/\1/")
 GIT_SHA=$(shell git rev-parse --short HEAD)
 BIN_DIR=build/bin
-.PHONY: all build check clean test login
+.PHONY: all build check clean test login build-e2e push-e2e
 
 all: check build
 
@@ -28,6 +28,7 @@ build-image:
 	docker build --build-arg VERSION=$(VERSION) --build-arg GIT_SHA=$(GIT_SHA) -t $(ALTREPO):$(VERSION) .
 	docker tag $(ALTREPO):$(VERSION) $(ALTREPO):latest
 
+build-e2e:
 	docker build -t $(E2EALTREPO):$(VERSION)  -f test/e2e/Dockerfile .
 
 test:
@@ -40,6 +41,7 @@ push: build-image
 	docker push $(ALTREPO):$(VERSION)
 	docker push $(ALTREPO):latest
 
+push-e2e: build-e2e
 	docker push $(E2EALTREPO):$(VERSION)
 
 clean:

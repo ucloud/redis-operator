@@ -127,6 +127,6 @@ func (s *ServiceOption) ListServices(namespace string) (*corev1.ServiceList, err
 	listOps := &client.ListOptions{
 		Namespace: namespace,
 	}
-	err := s.client.List(context.TODO(), listOps, services)
+	err := s.client.List(context.TODO(), services, listOps)
 	return services, err
 }

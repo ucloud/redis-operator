@@ -80,7 +80,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		rcChecker:   rcChecker,
 		rcHealer:    rcHealer,
 		metaCache:   new(clustercache.MetaMap),
-		eventsCli:   k8s.NewEvent(mgr.GetRecorder("redis-operator"), log),
+		eventsCli:   k8s.NewEvent(mgr.GetEventRecorderFor("redis-operator"), log),
 		logger:      log,
 	}
 

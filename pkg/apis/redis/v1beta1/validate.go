@@ -69,14 +69,19 @@ func (r *RedisCluster) Validate() error {
 }
 
 func enablePersistence(config map[string]string) {
-	config["appendonly"] = "yes"
-	config["auto-aof-rewrite-min-size"] = "1073741824"
-	config["repl-diskless-sync"] = "yes"
-	config["repl-backlog-size"] = "62914560"
-	config["repl-diskless-sync-delay"] = "5"
-	config["aof-load-truncated"] = "yes"
-	config["stop-writes-on-bgsave-error"] = "no"
-	config["save"] = "900 1 300 10"
+	setConfigMapIfNotExist("appendonly", "yes", config)
+	setConfigMapIfNotExist("auto-aof-rewrite-min-size", "536870912", config)
+	setConfigMapIfNotExist("auto-aof-rewrite-percentage", "100", config)
+	setConfigMapIfNotExist("repl-backlog-size", "62914560", config)
+	setConfigMapIfNotExist("aof-load-truncated", "yes", config)
+	setConfigMapIfNotExist("stop-writes-on-bgsave-error", "no", config)
+	setConfigMapIfNotExist("save", "900 1 300 10", config)
+}
+
+func setConfigMapIfNotExist(key, value string, config map[string]string) {
+	if _, ok := config[key]; !ok {
+		config[key] = value
+	}
 }
 
 func disablePersistence(config map[string]string) {

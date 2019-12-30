@@ -57,7 +57,7 @@ func (in *RedisCluster) DeepCopyObject() runtime.Object {
 func (in *RedisClusterList) DeepCopyInto(out *RedisClusterList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RedisCluster, len(*in))
@@ -116,6 +116,13 @@ func (in *RedisClusterSpec) DeepCopyInto(out *RedisClusterSpec) {
 	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.Annotations != nil {
+		in, out := &in.Annotations, &out.Annotations
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val

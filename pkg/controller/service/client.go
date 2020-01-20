@@ -102,21 +102,11 @@ func (r *RedisClusterKubeClient) EnsureRedisStatefulset(rc *redisv1beta1.RedisCl
 		return err
 	}
 
-	ns, err := r.K8SService.GetNameSpace(rc.Namespace)
-	//r.logger.WithValues("namespace", rc.Namespace).Info("get namespace", ns, err)
-	if err != nil {
-		return err
-	}
-	annotationIstioInject := false
-	if v, ok := ns.Labels["istio-injection"]; ok && v == "enabled" {
-		annotationIstioInject = true
-	}
-
 	oldSs, err := r.K8SService.GetStatefulSet(rc.Namespace, util.GetRedisName(rc))
 	if err != nil {
 		// If no resource we need to create.
 		if errors.IsNotFound(err) {
-			ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
+			ss := generateRedisStatefulSet(rc, labels, ownerRefs)
 			return r.K8SService.CreateStatefulSet(rc.Namespace, ss)
 		}
 		return err
@@ -124,7 +114,7 @@ func (r *RedisClusterKubeClient) EnsureRedisStatefulset(rc *redisv1beta1.RedisCl
 
 	if shouldUpdateRedis(rc.Spec.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources,
 		rc.Spec.Size, *oldSs.Spec.Replicas) {
-		ss := generateRedisStatefulSet(rc, labels, ownerRefs, annotationIstioInject)
+		ss := generateRedisStatefulSet(rc, labels, ownerRefs)
 		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
 	}
 	return nil

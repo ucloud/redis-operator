@@ -113,6 +113,6 @@ func (p *PodOption) ListPods(namespace string) (*corev1.PodList, error) {
 	listOps := &client.ListOptions{
 		Namespace: namespace,
 	}
-	err := p.client.List(context.TODO(), listOps, ps)
+	err := p.client.List(context.TODO(), ps, listOps)
 	return ps, err
 }

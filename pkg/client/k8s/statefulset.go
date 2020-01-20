@@ -73,7 +73,7 @@ func (s *StatefulSetOption) GetStatefulSetPods(namespace, name string) (*corev1.
 	}
 	labelSelector := labels.SelectorFromSet(labelSet)
 	foundPods := &corev1.PodList{}
-	err = s.client.List(context.TODO(), &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector}, foundPods)
+	err = s.client.List(context.TODO(), foundPods, &client.ListOptions{Namespace: namespace, LabelSelector: labelSelector})
 	return foundPods, err
 }
 
@@ -152,6 +152,6 @@ func (s *StatefulSetOption) ListStatefulSets(namespace string) (*appsv1.Stateful
 	listOps := &client.ListOptions{
 		Namespace: namespace,
 	}
-	err := s.client.List(context.TODO(), listOps, statelfulSets)
+	err := s.client.List(context.TODO(), statelfulSets, listOps)
 	return statelfulSets, err
 }

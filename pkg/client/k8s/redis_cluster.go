@@ -34,6 +34,8 @@ func (c *ClusterOption) UpdateCluster(namespace string, cluster *redisv1beta1.Re
 	cluster.Status.DescConditionsByTime()
 	err := c.client.Status().Update(context.TODO(), cluster)
 	if err != nil {
+		c.logger.WithValues("namespace", namespace, "cluster", cluster.Name, "conditions", cluster.Status.Conditions).
+			Error(err, "redisClusterStatus")
 		return err
 	}
 	c.logger.WithValues("namespace", namespace, "cluster", cluster.Name, "conditions", cluster.Status.Conditions).

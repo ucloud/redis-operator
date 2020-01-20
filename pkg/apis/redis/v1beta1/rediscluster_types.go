@@ -23,6 +23,7 @@ type RedisClusterSpec struct {
 	SecurityContext    *corev1.PodSecurityContext  `json:"securityContext,omitempty"`
 	ToleRations        []corev1.Toleration         `json:"toleRations,omitempty"`
 	Config             map[string]string           `json:"config,omitempty"`
+	Annotations        map[string]string           `json:"annotations,omitempty"`
 	DisablePersistence bool                        `json:"disablePersistence,omitempty"`
 
 	// Sentinel defines its cluster settings

@@ -1,0 +1,10 @@
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  annotations:
+    # if your operator run as cluster-scoped, add this annotations
+    redis.kun/scope: cluster-scoped
+  name: test
+spec:
+  # Add fields here
+  size: 3

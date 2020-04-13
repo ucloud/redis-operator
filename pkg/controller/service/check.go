@@ -62,6 +62,10 @@ func (r *RedisClusterChecker) CheckRedisConfig(redisCluster *redisv1beta1.RedisC
 		return err
 	}
 
+	if _, ok := configs["replica-announce-ip"]; !ok {
+		return fmt.Errorf("configs conflict, expect: replica-announce-ip to be set")
+	}
+
 	// TODO when custom config use unit like mb gb, will return configs conflict
 	for key, value := range redisCluster.Spec.Config {
 		if value != configs[key] {

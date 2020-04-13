@@ -124,9 +124,9 @@ func (r *RedisClusterHealer) SetSentinelCustomConfig(ip string, rc *redisv1beta1
 
 // SetRedisCustomConfig will call redis to set the configuration given in config
 func (r *RedisClusterHealer) SetRedisCustomConfig(ip string, rc *redisv1beta1.RedisCluster, auth *util.AuthConfig) error {
-	if len(rc.Spec.Config) == 0 && len(auth.Password) == 0 {
-		return nil
-	}
+	// if len(rc.Spec.Config) == 0 && len(auth.Password) == 0 {
+	// 	return nil
+	// }
 
 	//if len(auth.Password) != 0 {
 	//	rc.Spec.Config["requirepass"] = auth.Password

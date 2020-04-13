@@ -272,6 +272,10 @@ func (c *client) SetCustomRedisConfig(ip string, configs map[string]string, auth
 	rClient := rediscli.NewClient(options)
 	defer rClient.Close()
 
+	if err := c.applyRedisConfig("replica-announce-ip", ip, rClient); err != nil {
+		return err
+	}
+
 	for param, value := range configs {
 		//param, value, err := c.getConfigParameters(config)
 		//if err != nil {

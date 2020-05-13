@@ -11,20 +11,23 @@ import (
 // RedisClusterSpec defines the desired state of RedisCluster
 // +k8s:openapi-gen=true
 type RedisClusterSpec struct {
-	Size               int32                       `json:"size,omitempty"`
-	Resources          corev1.ResourceRequirements `json:"resources,omitempty"`
-	Image              string                      `json:"image,omitempty"`
-	Command            []string                    `json:"command,omitempty"`
-	ShutdownConfigMap  string                      `json:"shutdownConfigMap,omitempty"`
-	Storage            RedisStorage                `json:"storage,omitempty"`
-	Password           string                      `json:"password,omitempty"`
-	Exporter           RedisExporter               `json:"exporter,omitempty"`
-	Affinity           *corev1.Affinity            `json:"affinity,omitempty"`
-	SecurityContext    *corev1.PodSecurityContext  `json:"securityContext,omitempty"`
-	ToleRations        []corev1.Toleration         `json:"toleRations,omitempty"`
-	Config             map[string]string           `json:"config,omitempty"`
-	Annotations        map[string]string           `json:"annotations,omitempty"`
-	DisablePersistence bool                        `json:"disablePersistence,omitempty"`
+	Size               int32                         `json:"size,omitempty"`
+	Resources          corev1.ResourceRequirements   `json:"resources,omitempty"`
+	Image              string                        `json:"image,omitempty"`
+	ImagePullPolicy    corev1.PullPolicy             `json:"imagePullPolicy,omitempty"`
+	ImagePullSecrets   []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	Command            []string                      `json:"command,omitempty"`
+	ShutdownConfigMap  string                        `json:"shutdownConfigMap,omitempty"`
+	Storage            RedisStorage                  `json:"storage,omitempty"`
+	Password           string                        `json:"password,omitempty"`
+	Exporter           RedisExporter                 `json:"exporter,omitempty"`
+	Affinity           *corev1.Affinity              `json:"affinity,omitempty"`
+	SecurityContext    *corev1.PodSecurityContext    `json:"securityContext,omitempty"`
+	ToleRations        []corev1.Toleration           `json:"toleRations,omitempty"`
+	NodeSelector       map[string]string             `json:"nodeSelector,omitempty"`
+	Config             map[string]string             `json:"config,omitempty"`
+	Annotations        map[string]string             `json:"annotations,omitempty"`
+	DisablePersistence bool                          `json:"disablePersistence,omitempty"`
 
 	// Sentinel defines its cluster settings
 	Sentinel SentinelSettings `json:"sentinel,omitempty"`
@@ -55,36 +58,27 @@ func init() {
 	SchemeBuilder.Register(&RedisCluster{}, &RedisClusterList{})
 }
 
-//// RedisSettings defines the specification of the redis cluster
-//type RedisSettings struct {
-//	Size              int32                       `json:"size,omitempty"`
-//	Resources         corev1.ResourceRequirements `json:"resources,omitempty"`
-//	Image             string                      `json:"image,omitempty"`
-//	Command           []string                    `json:"command,omitempty"`
-//	ShutdownConfigMap string                      `json:"shutdownConfigMap,omitempty"`
-//	Storage           RedisStorage                `json:"storage,omitempty"`
-//	Password          string                      `json:"password,omitempty"`
-//	Exporter          RedisExporter               `json:"exporter,omitempty"`
-//	Affinity          *corev1.Affinity            `json:"affinity,omitempty"`
-//	SecurityContext   *corev1.PodSecurityContext  `json:"securityContext,omitempty"`
-//}
-
 // RedisExporter defines the specification for the redis exporter
 type RedisExporter struct {
-	Enabled bool   `json:"enabled,omitempty"`
-	Image   string `json:"image,omitempty"`
+	Enabled         bool              `json:"enabled,omitempty"`
+	Image           string            `json:"image,omitempty"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // SentinelSettings defines the specification of the sentinel cluster
 type SentinelSettings struct {
-	Image           string                      `json:"image,omitempty"`
-	Replicas        int32                       `json:"replicas,omitempty"`
-	Resources       corev1.ResourceRequirements `json:"resources,omitempty"`
-	CustomConfig    []string                    `json:"customConfig,omitempty"`
-	Command         []string                    `json:"command,omitempty"`
-	Affinity        *corev1.Affinity            `json:"affinity,omitempty"`
-	SecurityContext *corev1.PodSecurityContext  `json:"securityContext,omitempty"`
-	ToleRations     []corev1.Toleration         `json:"tolerations,omitempty"`
+	Image            string                        `json:"image,omitempty"`
+	ImagePullPolicy  corev1.PullPolicy             `json:"imagePullPolicy,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	Replicas         int32                         `json:"replicas,omitempty"`
+	Resources        corev1.ResourceRequirements   `json:"resources,omitempty"`
+	CustomConfig     []string                      `json:"customConfig,omitempty"`
+	Command          []string                      `json:"command,omitempty"`
+	Affinity         *corev1.Affinity              `json:"affinity,omitempty"`
+	SecurityContext  *corev1.PodSecurityContext    `json:"securityContext,omitempty"`
+	ToleRations      []corev1.Toleration           `json:"tolerations,omitempty"`
+	NodeSelector     map[string]string             `json:"nodeSelector,omitempty"`
+	Annotations      map[string]string             `json:"annotations,omitempty"`
 }
 
 // RedisStorage defines the structure used to store the Redis Data

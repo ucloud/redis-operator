@@ -33,6 +33,24 @@ type RedisClusterCheck interface {
 	CheckRedisConfig(redisCluster *redisv1beta1.RedisCluster, addr string, auth *util.AuthConfig) error
 }
 
+var parseConfigMap = map[string]int8{
+	"maxmemory":                  0,
+	"proto-max-bulk-len":         0,
+	"client-query-buffer-limit":  0,
+	"repl-backlog-size":          0,
+	"auto-aof-rewrite-min-size":  0,
+	"active-defrag-ignore-bytes": 0,
+	"hash-max-ziplist-entries":   0,
+	"hash-max-ziplist-value":     0,
+	"stream-node-max-bytes":      0,
+	"set-max-intset-entries":     0,
+	"zset-max-ziplist-entries":   0,
+	"zset-max-ziplist-value":     0,
+	"hll-sparse-max-bytes":       0,
+	// TODO parse client-output-buffer-limit
+	//"client-output-buffer-limit": 0,
+}
+
 // RedisClusterChecker is our implementation of RedisClusterCheck intercace
 type RedisClusterChecker struct {
 	k8sService  k8s.Services
@@ -62,8 +80,15 @@ func (r *RedisClusterChecker) CheckRedisConfig(redisCluster *redisv1beta1.RedisC
 		return err
 	}
 
-	// TODO when custom config use unit like mb gb, will return configs conflict
 	for key, value := range redisCluster.Spec.Config {
+		var err error
+		if _, ok := parseConfigMap[key]; ok {
+			value, err = util.ParseRedisMemConf(value)
+			if err != nil {
+				r.logger.Error(err, "redis config format err", "key", key, "value", value)
+				continue
+			}
+		}
 		if value != configs[key] {
 			return fmt.Errorf("%s configs conflict, expect: %s, current: %s", key, value, configs[key])
 		}

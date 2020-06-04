@@ -231,14 +231,16 @@ func generateRedisStatefulSet(rc *redisv1beta1.RedisCluster, labels map[string]s
 					Annotations: rc.Spec.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:        getAffinity(rc.Spec.Affinity, labels),
-					Tolerations:     rc.Spec.ToleRations,
-					SecurityContext: getSecurityContext(rc.Spec.SecurityContext),
+					Affinity:         getAffinity(rc.Spec.Affinity, labels),
+					Tolerations:      rc.Spec.ToleRations,
+					NodeSelector:     rc.Spec.NodeSelector,
+					SecurityContext:  getSecurityContext(rc.Spec.SecurityContext),
+					ImagePullSecrets: rc.Spec.ImagePullSecrets,
 					Containers: []corev1.Container{
 						{
 							Name:            "redis",
 							Image:           rc.Spec.Image,
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: pullPolicy(rc.Spec.ImagePullPolicy),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "redis",
@@ -332,17 +334,20 @@ func generateSentinelStatefulSet(rc *redisv1beta1.RedisCluster, labels map[strin
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels:      labels,
+					Annotations: rc.Spec.Sentinel.Annotations,
 				},
 				Spec: corev1.PodSpec{
-					Affinity:        getAffinity(rc.Spec.Sentinel.Affinity, labels),
-					Tolerations:     rc.Spec.Sentinel.ToleRations,
-					SecurityContext: getSecurityContext(rc.Spec.Sentinel.SecurityContext),
+					Affinity:         getAffinity(rc.Spec.Sentinel.Affinity, labels),
+					Tolerations:      rc.Spec.Sentinel.ToleRations,
+					NodeSelector:     rc.Spec.Sentinel.NodeSelector,
+					SecurityContext:  getSecurityContext(rc.Spec.Sentinel.SecurityContext),
+					ImagePullSecrets: rc.Spec.Sentinel.ImagePullSecrets,
 					InitContainers: []corev1.Container{
 						{
 							Name:            "sentinel-config-copy",
-							Image:           rc.Spec.Image,
-							ImagePullPolicy: "IfNotPresent",
+							Image:           rc.Spec.Sentinel.Image,
+							ImagePullPolicy: pullPolicy(rc.Spec.Sentinel.ImagePullPolicy),
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "sentinel-config",
@@ -373,8 +378,8 @@ func generateSentinelStatefulSet(rc *redisv1beta1.RedisCluster, labels map[strin
 					Containers: []corev1.Container{
 						{
 							Name:            "sentinel",
-							Image:           rc.Spec.Image,
-							ImagePullPolicy: "Always",
+							Image:           rc.Spec.Sentinel.Image,
+							ImagePullPolicy: pullPolicy(rc.Spec.Sentinel.ImagePullPolicy),
 							Ports: []corev1.ContainerPort{
 								{
 									Name:          "sentinel",
@@ -489,7 +494,7 @@ func createRedisExporterContainer(rc *redisv1beta1.RedisCluster) corev1.Containe
 	container := corev1.Container{
 		Name:            exporterContainerName,
 		Image:           rc.Spec.Exporter.Image,
-		ImagePullPolicy: "Always",
+		ImagePullPolicy: pullPolicy(rc.Spec.Exporter.ImagePullPolicy),
 		Env: []corev1.EnvVar{
 			{
 				Name: "REDIS_ALIAS",
@@ -723,4 +728,11 @@ func newHeadLessSvcForCR(cluster *redisv1beta1.RedisCluster, labels map[string]s
 	}
 
 	return svc
+}
+
+func pullPolicy(specPolicy corev1.PullPolicy) corev1.PullPolicy {
+	if specPolicy == "" {
+		return corev1.PullAlways
+	}
+	return specPolicy
 }

@@ -53,11 +53,6 @@ In addition to the sentinel's own capabilities, redis-operator can:
 ## Quick Start
 
 ### Deploy redis operator
-Build and push the redis-operator image
-```
-$ make REGISTRY=you_public_registry build-image
-$ make REGISTRY=you_public_registry push
-```
 
 Register the RedisCluster custom resource definition (CRD).
 ```
@@ -67,13 +62,6 @@ $ kubectl create -f deploy/crds/redis_v1beta1_rediscluster_crd.yaml
 A namespace-scoped operator watches and manages resources in a single namespace, whereas a cluster-scoped operator watches and manages resources cluster-wide.
 You can chose run your operator as namespace-scoped or cluster-scoped.
 ```
-// Update the operator manifest to use the built image name
-$ sed -i 's|REPLACE_IMAGE|your_build_image_name/redis-operator|g' deploy/cluster/operator.yaml
-$ sed -i 's|REPLACE_IMAGE|your_build_image_name/redis-operator|g' deploy/namespace/operator.yaml
-# On OSX use:
-$ sed -i "" 's|REPLACE_IMAGE|your_build_image_name|g' deploy/cluster/operator.yaml
-$ sed -i "" 's|REPLACE_IMAGE|your_build_image_name|g' deploy/namespace/operator.yaml
-
 // cluster-scoped
 $ kubectl create -f deploy/service_account.yaml
 $ kubectl create -f deploy/cluster/cluster_role.yaml

@@ -2,6 +2,7 @@ package service
 
 import (
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -113,11 +114,30 @@ func (r *RedisClusterKubeClient) EnsureRedisStatefulset(rc *redisv1beta1.RedisCl
 	}
 
 	if shouldUpdateRedis(rc.Spec.Resources, oldSs.Spec.Template.Spec.Containers[0].Resources,
-		rc.Spec.Size, *oldSs.Spec.Replicas) {
+		rc.Spec.Size, *oldSs.Spec.Replicas) || exporterChanged(rc, oldSs) {
 		ss := generateRedisStatefulSet(rc, labels, ownerRefs)
 		return r.K8SService.UpdateStatefulSet(rc.Namespace, ss)
 	}
+
 	return nil
+}
+
+func exporterChanged(rc *redisv1beta1.RedisCluster, sts *appsv1.StatefulSet) bool {
+	if rc.Spec.Exporter.Enabled {
+		for _, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == exporterContainerName {
+				return false
+			}
+		}
+		return true
+	} else {
+		for _, container := range sts.Spec.Template.Spec.Containers {
+			if container.Name == exporterContainerName {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 func shouldUpdateRedis(expectResource, containterResource corev1.ResourceRequirements, expectSize, replicas int32) bool {

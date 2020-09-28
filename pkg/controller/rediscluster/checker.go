@@ -36,9 +36,11 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 		r.eventsCli.UpdateCluster(meta.Obj, "wait for all redis server start")
 		return needRequeueErr
 	}
-	if err := r.rcChecker.CheckSentinelNumber(meta.Obj); err != nil {
-		r.eventsCli.FailedCluster(meta.Obj, err.Error())
-		return nil
+	if !meta.Obj.Standalone() {
+		if err := r.rcChecker.CheckSentinelNumber(meta.Obj); err != nil {
+			r.eventsCli.FailedCluster(meta.Obj, err.Error())
+			return nil
+		}
 	}
 
 	nMasters, err := r.rcChecker.GetNumberMasters(meta.Obj, meta.Auth)
@@ -86,6 +88,10 @@ func (r *RedisClusterHandler) CheckAndHeal(meta *clustercache.Meta) error {
 
 	if err = r.setRedisConfig(meta); err != nil {
 		return err
+	}
+
+	if meta.Obj.Standalone() {
+		return nil
 	}
 
 	sentinels, err := r.rcChecker.GetSentinelsIPs(meta.Obj)

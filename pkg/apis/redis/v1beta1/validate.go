@@ -30,13 +30,15 @@ func (r *RedisCluster) Validate() error {
 
 	if r.Spec.Size == 0 {
 		r.Spec.Size = defaultRedisNumber
-	} else if r.Spec.Size < defaultRedisNumber {
+	} else if r.Spec.Size < defaultRedisNumber && r.Spec.Size != 1 {
 		return errors.New("number of redis in spec is less than the minimum")
 	}
 
 	if r.Spec.Sentinel.Replicas == 0 {
-		r.Spec.Sentinel.Replicas = defaultSentinelNumber
-	} else if r.Spec.Sentinel.Replicas < defaultSentinelNumber {
+		if r.Spec.Size > 1 {
+				r.Spec.Sentinel.Replicas = defaultSentinelNumber
+		}
+	} else if r.Spec.Sentinel.Replicas < defaultSentinelNumber  {
 		return errors.New("number of sentinels in spec is less than the minimum")
 	}
 

@@ -101,7 +101,7 @@ spec:
             size:
               format: int32
               type: integer
-              minimum: 3
+              minimum: 1
               maximum: 10
             storage:
               properties:

@@ -222,9 +222,11 @@ func (r *ReconcileRedisCluster) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	if err = r.handler.rcChecker.CheckSentinelReadyReplicas(instance); err != nil {
-		reqLogger.Info(err.Error())
-		return reconcile.Result{RequeueAfter: 20 * time.Second}, nil
+	if !instance.Standalone() {
+		if err = r.handler.rcChecker.CheckSentinelReadyReplicas(instance); err != nil {
+			reqLogger.Info(err.Error())
+			return reconcile.Result{RequeueAfter: 20 * time.Second}, nil
+		}
 	}
 
 	return reconcile.Result{RequeueAfter: time.Duration(reconcileTime) * time.Second}, nil

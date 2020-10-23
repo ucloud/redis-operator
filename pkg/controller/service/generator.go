@@ -140,11 +140,21 @@ func generateRedisShutdownConfigMap(rc *redisv1beta1.RedisCluster, labels map[st
 	envSentinelHost := fmt.Sprintf("REDIS_SENTINEL_%s_SERVICE_HOST", strings.ToUpper(rc.Name))
 	envSentinelPort := fmt.Sprintf("REDIS_SENTINEL_%s_SERVICE_PORT_SENTINEL", strings.ToUpper(rc.Name))
 	shutdownContent := fmt.Sprintf(`#!/usr/bin/env sh
-set -eou pipefail
-master=$(redis-cli -h ${%s} -p ${%s} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
+master=""
+response_code=""
+while [ "$master" = "" ]; do
+	echo "Asking sentinel who is master..."
+	master=$(redis-cli -h ${%s} -p ${%s} --csv SENTINEL get-master-addr-by-name mymaster | tr ',' ' ' | tr -d '\"' |cut -d' ' -f1)
+	sleep 1
+done
+echo "Master is $master, doing redis save..."
 redis-cli SAVE
-if [[ $master ==  $(hostname -i) ]]; then
-  redis-cli -h ${%s} -p ${%s} SENTINEL failover mymaster
+if [ $master = $(hostname -i) ]; then
+	while [ ! "$response_code" = "OK" ]; do
+  		response_code=$(redis-cli -h ${%s} -p ${%s} SENTINEL failover mymaster)
+		echo "after failover with code $response_code"
+		sleep 1
+	done
 fi`, envSentinelHost, envSentinelPort, envSentinelHost, envSentinelPort)
 
 	return &corev1.ConfigMap{

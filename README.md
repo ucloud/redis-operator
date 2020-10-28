@@ -49,6 +49,7 @@ In addition to the sentinel's own capabilities, redis-operator can:
 * False delete automatic recovery
 * Persistence
 * Custom SecurityContext
+* Standalone Mode
 
 ## Quick Start
 
@@ -342,6 +343,25 @@ spec:
       sysctls:
       - name: net.core.somaxconn
         value: "1024"
+```
+
+#### Redis Standalone Mode
+
+If you only requires single node, non auto failover redis instance, You can deploy standalone redis instance, this will change headless service to normal.
+
+```
+apiVersion: redis.kun/v1beta1
+kind: RedisCluster
+metadata:
+  name: standalone
+spec:
+  size: 1
+```
+
+```
+# kubectl get svc redis-cluster-standalone
+
+redis-cluster-standalone  ClusterIP      172.31.254.96 
 ```
 
 ### Cleanup

@@ -45,6 +45,13 @@ type RedisCluster struct {
 	Status RedisClusterStatus `json:"status,omitempty"`
 }
 
+func (r *RedisCluster) Standalone() bool {
+	if r.Spec.Sentinel.Replicas == 0  {
+		return true
+	}
+	return false
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RedisClusterList contains a list of RedisCluster

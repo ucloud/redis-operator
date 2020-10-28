@@ -56,6 +56,24 @@ func generateRedisService(rc *redisv1beta1.RedisCluster, labels map[string]strin
 
 	labels = util.MergeLabels(labels, generateSelectorLabels(util.RedisRoleName, rc.Name))
 	redisTargetPort := intstr.FromInt(6379)
+
+	spec := corev1.ServiceSpec{
+		Type: corev1.ServiceTypeClusterIP,
+		Ports: []corev1.ServicePort{
+			{
+				Port:       6379,
+				Protocol:   corev1.ProtocolTCP,
+				Name:       "redis",
+				TargetPort: redisTargetPort,
+			},
+		},
+		Selector: labels,
+	}
+
+	if !rc.Standalone() {
+		spec.ClusterIP = corev1.ClusterIPNone
+	}
+
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -63,19 +81,7 @@ func generateRedisService(rc *redisv1beta1.RedisCluster, labels map[string]strin
 			Labels:          labels,
 			OwnerReferences: ownerRefs,
 		},
-		Spec: corev1.ServiceSpec{
-			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: corev1.ClusterIPNone,
-			Ports: []corev1.ServicePort{
-				{
-					Port:       6379,
-					Protocol:   corev1.ProtocolTCP,
-					Name:       "redis",
-					TargetPort: redisTargetPort,
-				},
-			},
-			Selector: labels,
-		},
+		Spec: spec,
 	}
 }
 
@@ -675,6 +681,12 @@ func getRedisCommand(rc *redisv1beta1.RedisCluster) []string {
 		"--tcp-keepalive 60",
 		"--save 900 1",
 		"--save 300 10",
+	}
+
+	if rc.Standalone() {
+		cmds = []string{
+			"redis-server",
+		}
 	}
 
 	if rc.Spec.Password != "" {

@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: pullrequest
+spec:
+  pipelineSpec:
+    tasks:
+    - name: from-build-pack
+      resources: {}
+      taskSpec:
+        metadata: {}
+        stepTemplate:
+          workingDir: /workspace/source
+          env:
+            - name: "NEXUS_AUTH"
+              valueFrom:
+                secretKeyRef:
+                  name: drivenow-maven-settings
+                  key: NEXUS_AUTH
+            - name: "KANIKO_ARGS"
+              value: "--build-arg=NEXUS_AUTH"
+
+        steps:
+        - image: uses:lighthouse:drivenow/jx3-pipelines/docker-helm-promote-pr/pullrequest.yaml@master
+  podTemplate: {}
+  serviceAccountName: tekton-bot
+  timeout: 240h0m0s
+status: {}
